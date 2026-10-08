@@ -1,12 +1,12 @@
 # Lenguaje RP
 
+<p align="center"><img src="logo/logo.png" alt="Logo del lenguaje RP" width="160"></p>
+
 RP es un lenguaje de programación pequeño cuyas instrucciones usan expresiones
 **chapinas** (el español coloquial de Guatemala). Por ejemplo, en vez de
 `edad = 19` se escribe `fijate que edad es 19`.
 
-Este repositorio contiene el **compilador de RP escrito en C**. Lee un programa
-escrito en RP, revisa que esté bien escrito, muestra paso a paso lo que encontró
-y lo ejecuta.
+Este repositorio contiene el **compilador de RP escrito en C**.
 
 ```
 fijate que nombre es "Ana"     # crea una variable con un texto
@@ -24,12 +24,13 @@ que onda edad                  # muestra su tipo: cabal (número entero)
 1. [Instalación en Mac](#1-instalación-en-mac)
 2. [Instalación en Windows](#2-instalación-en-windows)
 3. [Cómo ejecutar un programa](#3-cómo-ejecutar-un-programa)
-4. [Aprenda RP paso a paso](#4-aprenda-rp-paso-a-paso)
-5. [Referencia del lenguaje](#5-referencia-del-lenguaje)
-6. [Cómo funciona el compilador](#6-cómo-funciona-el-compilador)
-7. [Estructura del proyecto](#7-estructura-del-proyecto)
-8. [Problemas comunes](#8-problemas-comunes)
-9. [Glosario](#9-glosario)
+4. [Logo, doble clic y VS Code](#4-logo-doble-clic-y-vs-code)
+5. [Aprenda RP paso a paso](#5-aprenda-rp-paso-a-paso)
+6. [Referencia del lenguaje](#6-referencia-del-lenguaje)
+7. [Cómo funciona el compilador](#7-cómo-funciona-el-compilador)
+8. [Estructura del proyecto](#8-estructura-del-proyecto)
+9. [Problemas comunes](#9-problemas-comunes)
+10. [Glosario](#10-glosario)
 
 ---
 
@@ -186,11 +187,87 @@ Si hay errores, se muestran todos al final y el programa no se ejecuta.
 
 ---
 
-## 4. Aprenda RP paso a paso
+## 4. Logo, doble clic y VS Code
+
+RP tiene su propio logo. Estos pasos son **opcionales**: hacen que los archivos
+`.rp` se vean con el logo y que se puedan ejecutar con doble clic. Se instalan
+una sola vez y no hacen falta para usar el lenguaje desde la terminal.
+
+<p align="center"><img src="logo/logo.png" alt="Logo de RP" width="96"></p>
+
+### En Mac
+
+Desde la carpeta del proyecto, en la Terminal:
+
+```bash
+./instalar/mac/instalar.sh
+```
+
+El script compila el lenguaje y crea la app **RP** en la carpeta *Aplicaciones*
+de su usuario. Desde ese momento:
+
+- Los archivos `.rp` se ven con el logo de RP en el Finder.
+- **Doble clic** en un `.rp` abre la Terminal y lo ejecuta. La primera vez, macOS
+  pregunta si "RP" puede controlar "Terminal": presione **OK**.
+- Para **editar** un `.rp`: clic derecho → *Abrir con* → VS Code o TextEdit.
+
+Para quitarlo: `./instalar/mac/desinstalar.sh`
+
+### En Windows
+
+Primero compile con `.\compilar.bat` y luego, en PowerShell desde la carpeta del
+proyecto:
+
+```powershell
+.\instalar\windows\instalar.bat
+```
+
+No necesita permisos de administrador. Desde ese momento:
+
+- Los archivos `.rp` se ven con el logo de RP en el Explorador de archivos.
+- **Doble clic** en un `.rp` lo ejecuta en una ventana de consola.
+- Para **editar** un `.rp`: clic derecho → *Editar* (abre el Bloc de notas), o
+  *Abrir con* → VS Code.
+
+Si el icono no cambia de inmediato, cierre sesión y vuelva a entrar. Para
+quitarlo: `.\instalar\windows\desinstalar.bat`
+
+> El instalador usa la ubicación actual de la carpeta del proyecto. Si la mueve
+> de lugar, vuelva a ejecutarlo.
+
+### En Visual Studio Code (Mac y Windows)
+
+La extensión de RP para VS Code agrega:
+
+- El logo de RP junto a los archivos `.rp` en el explorador de VS Code.
+- **Colores** para el código: instrucciones, textos, números, `simon`/`nel` y comentarios.
+- Un botón **▶** arriba a la derecha (o la tecla **F5**) que guarda y ejecuta el
+  programa en la terminal de VS Code.
+- `Cmd + /` (Mac) o `Ctrl + /` (Windows) para comentar líneas con `#`.
+
+Para instalarla, en VS Code: abra la vista de **Extensiones** (`Cmd + Shift + X`
+o `Ctrl + Shift + X`), presione el menú **⋯** de arriba → **Install from VSIX…**
+(Instalar desde VSIX) y elija el archivo `instalar/vscode/rp-lenguaje.vsix`.
+
+El botón ▶ busca el compilador (`rp` o `rp.exe`) en la carpeta del archivo y en
+las carpetas de arriba, así que funciona con cualquier `.rp` dentro del
+proyecto. Para archivos en otro lugar, indique la ruta del compilador en la
+configuración de VS Code: busque `rp.rutaCompilador`.
+
+### Cambiar el logo
+
+El logo original está en `logo/logo.svg`. Para cambiarlo, reemplace
+`logo/logo.png` por una imagen cuadrada de 1024×1024 píxeles y, en Mac, ejecute
+`./logo/generar_iconos.sh`: crea `rp.icns` (Mac) y `rp.ico` (Windows). Después
+vuelva a ejecutar el instalador de su sistema.
+
+---
+
+## 5. Aprenda RP paso a paso
 
 Puede escribir estos ejemplos en un archivo `.rp` o en el modo interactivo.
 
-### 4.1 Crear una variable
+### 5.1 Crear una variable
 
 Las variables se crean con `fijate que`, como cuando uno dice "fijate que…" para
 contar algo nuevo. La palabra `es` le da su primer valor:
@@ -206,7 +283,7 @@ También se puede crear vacía. En ese caso vale `ni maiz` (nada):
 fijate que apodo
 ```
 
-### 4.2 Cambiar el valor
+### 5.2 Cambiar el valor
 
 Para cambiar el valor de una variable que ya existe se usa `ponele <valor> a <nombre>`,
 como diría un chapín: "ponele 20 a la edad".
@@ -223,7 +300,7 @@ fijate que copia
 ponele edad a copia
 ```
 
-### 4.3 Preguntar el tipo
+### 5.3 Preguntar el tipo
 
 `que onda <nombre>` muestra qué tipo de dato guarda una variable:
 
@@ -238,7 +315,7 @@ Salida:
 con vuelto
 ```
 
-### 4.4 Una variable puede cambiar de tipo
+### 5.4 Una variable puede cambiar de tipo
 
 RP adivina el tipo por la forma del valor, y si se le pone un valor de otro tipo,
 la variable cambia de tipo (igual que en Python):
@@ -252,7 +329,7 @@ ponele "siete" a dato
 que onda dato          # chisme
 ```
 
-### 4.5 Comentarios
+### 5.5 Comentarios
 
 Todo lo que va después de `#` se ignora. Sirve para dejar notas:
 
@@ -261,7 +338,7 @@ Todo lo que va después de `#` se ignora. Sirve para dejar notas:
 fijate que nota es 85    # sobre 100
 ```
 
-### 4.6 Un programa completo
+### 5.6 Un programa completo
 
 ```
 # Declaraciones
@@ -294,7 +371,7 @@ Este programa está en `ejemplos/completo.rp`. Hay más ejemplos en la carpeta
 
 ---
 
-## 5. Referencia del lenguaje
+## 6. Referencia del lenguaje
 
 ### Instrucciones
 
@@ -365,7 +442,7 @@ solo se ejecuta si no tiene ningún error.
 
 ---
 
-## 6. Cómo funciona el compilador
+## 7. Cómo funciona el compilador
 
 Un compilador trabaja por **fases**: cada una recibe el resultado de la anterior.
 Si una fase encuentra errores, las siguientes no se ejecutan.
@@ -428,13 +505,18 @@ CHISME      "[^"\n]*"  |  '[^'\n]*'         texto entre comillas
 
 ---
 
-## 7. Estructura del proyecto
+## 8. Estructura del proyecto
 
 ```
 lenguaje-rp-c/
 ├── Makefile              Compilar en Mac (make) y correr pruebas (make prueba)
 ├── compilar.bat          Compilar en Windows (compilar.bat) y correr pruebas (compilar.bat prueba)
 ├── README.md             Este archivo
+├── logo/                 Logo del lenguaje (logo.svg, logo.png, rp.icns para Mac, rp.ico para Windows)
+├── instalar/             Logo en los archivos .rp y doble clic para ejecutarlos (sección 4)
+│   ├── mac/              instalar.sh / desinstalar.sh (crea la app RP)
+│   ├── windows/          instalar.bat / desinstalar.bat (registra .rp en Windows)
+│   └── vscode/           Extensión de VS Code: logo, colores y botón ▶ (rp-lenguaje.vsix)
 ├── ejemplos/             Programas de ejemplo escritos en RP (.rp)
 ├── pruebas/
 │   └── pruebas.c         Pruebas automáticas de todas las reglas
@@ -458,7 +540,7 @@ Cada archivo `.c` tiene un `.h` con el mismo nombre que declara sus funciones.
 
 ---
 
-## 8. Problemas comunes
+## 9. Problemas comunes
 
 | Problema | Solución |
 |---|---|
@@ -469,11 +551,14 @@ Cada archivo `.c` tiene un `.h` con el mismo nombre que declara sus funciones.
 | Windows: `rp.exe no se reconoce` | Escriba `.\rp.exe`, con `.\` al inicio, y compile antes con `.\compilar.bat` |
 | `No se pudo abrir 'archivo.rp'` | Revise el nombre y que esté en la carpeta actual. En Windows, que no se haya guardado como `archivo.rp.txt` |
 | La `ñ` o las tildes dan error `símbolo no permitido` | Guarde el archivo con codificación **UTF-8** |
+| Mac: los archivos `.rp` siguen viéndose en blanco | Ejecute de nuevo `./instalar/mac/instalar.sh`; si persiste, cierre sesión y vuelva a entrar |
+| Mac: al hacer doble clic pregunta si "RP" puede controlar "Terminal" | Presione **OK**: eso permite abrir la Terminal para ejecutar el programa |
+| Windows: el icono de los `.rp` no cambia | Cierre sesión y vuelva a entrar. Si antes eligió otro programa con "Abrir con", elija de nuevo *Ejecutar con RP* |
 | Los bordes de las tablas se ven como símbolos raros (Windows) | Use PowerShell o Windows Terminal en lugar de la consola antigua (cmd) |
 
 ---
 
-## 9. Glosario
+## 10. Glosario
 
 | Término | Significado |
 |---|---|

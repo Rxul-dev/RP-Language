@@ -1,0 +1,48 @@
+{
+  "name": "rp-lenguaje",
+  "displayName": "Lenguaje RP",
+  "description": "Logo, colores y botón para ejecutar programas del lenguaje RP (.rp)",
+  "version": "0.1.0",
+  "publisher": "lenguaje-rp",
+  "license": "MIT",
+  "icon": "icono.png",
+  "engines": { "vscode": "^1.64.0" },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:rp"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "rp",
+        "aliases": ["RP", "rp"],
+        "extensions": [".rp"],
+        "configuration": "./language-configuration.json",
+        "icon": { "light": "./icono.png", "dark": "./icono.png" }
+      }
+    ],
+    "grammars": [
+      { "language": "rp", "scopeName": "source.rp", "path": "./syntaxes/rp.tmLanguage.json" }
+    ],
+    "commands": [
+      { "command": "rp.ejecutar", "title": "Ejecutar programa RP", "icon": "$(play)", "category": "RP" }
+    ],
+    "menus": {
+      "editor/title": [
+        { "command": "rp.ejecutar", "when": "editorLangId == rp", "group": "navigation" }
+      ]
+    },
+    "keybindings": [
+      { "command": "rp.ejecutar", "key": "f5", "when": "editorLangId == rp" }
+    ],
+    "configuration": {
+      "title": "Lenguaje RP",
+      "properties": {
+        "rp.rutaCompilador": {
+          "type": "string",
+          "default": "",
+          "description": "Ruta del compilador rp (o rp.exe). Si se deja vacía, se busca en la carpeta del archivo y en las carpetas de arriba."
+        }
+      }
+    }
+  }
+}

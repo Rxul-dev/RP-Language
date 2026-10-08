@@ -1,0 +1,32 @@
+{
+  "name": "RP",
+  "scopeName": "source.rp",
+  "patterns": [
+    { "include": "#comentario" },
+    { "include": "#chisme" },
+    { "include": "#instruccion" },
+    { "include": "#constante" },
+    { "include": "#numero" },
+    { "include": "#nombre" }
+  ],
+  "repository": {
+    "comentario": { "name": "comment.line.number-sign.rp", "match": "#.*$" },
+    "chisme": {
+      "patterns": [
+        { "name": "string.quoted.double.rp", "match": "\"[^\"\\n]*\"?" },
+        { "name": "string.quoted.single.rp", "match": "'[^'\\n]*'?" }
+      ]
+    },
+    "instruccion": {
+      "patterns": [
+        { "name": "keyword.other.declaracion.rp", "match": "\\bfijate\\s+que\\b" },
+        { "name": "keyword.other.consulta.rp", "match": "\\bque\\s+onda\\b" },
+        { "name": "keyword.other.asignacion.rp", "match": "\\b(ponele|es|a)\\b" },
+        { "name": "keyword.other.rp", "match": "\\b(fijate|que|onda)\\b" }
+      ]
+    },
+    "constante": { "name": "constant.language.rp", "match": "\\b(simon|nel|ni\\s+maiz|ni|maiz)\\b" },
+    "numero": { "name": "constant.numeric.rp", "match": "(?<![A-Za-z0-9_])-?[0-9]+(\\.[0-9]+)?\\b" },
+    "nombre": { "name": "variable.other.rp", "match": "[A-Za-z_ÁÉÍÓÚÜÑáéíóúüñ][A-Za-z0-9_ÁÉÍÓÚÜÑáéíóúüñ]*" }
+  }
+}
