@@ -1,0 +1,15 @@
+# Declaraciones
+fijate que nombre es "Ana"
+fijate que edad es 19
+fijate que nota es 8.5
+fijate que aprobado es simon
+fijate que apodo # queda en ni maiz
+
+# Asignaciones
+ponele 20 a edad
+ponele "La Seño" a apodo
+ponele nel a aprobado
+
+# Identificación de tipos
+que onda edad # muestra: cabal
+que onda apodo # muestra: chisme

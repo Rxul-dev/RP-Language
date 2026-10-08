@@ -1,0 +1,25 @@
+# Los cinco tipos de RP y el tipado dinámico
+fijate que año es 2026
+fijate que precio es 12.50
+fijate que canción es 'Chapín de corazón'
+fijate que llueve es simon
+fijate que _pendiente
+
+que onda año        # cabal
+que onda precio     # con vuelto
+que onda canción    # chisme
+que onda llueve     # simonel
+que onda _pendiente # ni maiz
+
+# Una variable puede cambiar de tipo, como en Python
+fijate que dato es -7
+que onda dato       # cabal
+ponele 8.5 a dato
+que onda dato       # con vuelto
+ponele "simon" a dato
+que onda dato       # chisme (entre comillas no es simonel)
+
+# Copiar el valor de otra variable
+fijate que copia
+ponele llueve a copia
+que onda copia      # simonel
