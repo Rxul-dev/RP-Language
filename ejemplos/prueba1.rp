@@ -1,0 +1,22 @@
+fijate que nombre es "jay"
+que onda nombre
+
+fijate que nombre1 es 54
+que onda nombre1
+
+fijate que nombre2 es ni maiz
+que onda nombre2
+
+fijate que precio es 12.50
+que onda precio
+
+fijate que aprobado es simon
+
+
+que onda aprobado
+
+
+
+# nombre = "jay"
+
+# print(f"{nombre} hola")

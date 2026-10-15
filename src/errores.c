@@ -60,6 +60,7 @@ const char *fase_nombre(Fase fase) {
     switch (fase) {
         case FASE_LEXICA: return "léxico";
         case FASE_SINTACTICA: return "sintáctico";
+        case FASE_EJECUCION: return "de ejecución";
         default: return "semántico";
     }
 }

@@ -13,7 +13,7 @@ const char *tipo_rp_nombre(TipoRP tipo) {
         case RP_CHISME: return "chisme";
         case RP_SIMONEL: return "simonel";
         case RP_NI_MAIZ: return "ni maiz";
-        default: return "(desconocido)";
+        default: return "dinámico";
     }
 }
 
@@ -50,4 +50,92 @@ void valor_formatear(const ValorRP *v, char *buf, size_t n) {
         default:
             snprintf(buf, n, "ni maiz");
     }
+}
+
+void valor_texto(const ValorRP *v, char *buf, size_t n) {
+    if (v->tipo == RP_CHISME)
+        snprintf(buf, n, "%s", v->dato.chisme);
+    else
+        valor_formatear(v, buf, n);
+}
+
+static int es_numero(TipoRP t) {
+    return t == RP_CABAL || t == RP_CON_VUELTO;
+}
+
+int tipo_operacion(char op, TipoRP a, TipoRP b, TipoRP *resultado) {
+    if (op == '+' && (a == RP_CHISME || b == RP_CHISME)) {
+        *resultado = RP_CHISME;
+        return 1;
+    }
+    if (!es_numero(a) || !es_numero(b)) return 0;
+    *resultado = a == RP_CABAL && b == RP_CABAL ? RP_CABAL : RP_CON_VUELTO;
+    return 1;
+}
+
+static const char *con_articulo(TipoRP t) {
+    switch (t) {
+        case RP_CABAL: return "un cabal";
+        case RP_CON_VUELTO: return "un con vuelto";
+        case RP_CHISME: return "un chisme";
+        case RP_SIMONEL: return "un simonel";
+        default: return "ni maiz";
+    }
+}
+
+void mensaje_operacion_invalida(char op, TipoRP a, TipoRP b, char *buf, size_t n) {
+    snprintf(buf, n, "no se puede usar '%c' entre %s y %s; %s", op, con_articulo(a), con_articulo(b),
+             op == '+' ? "'+' solo suma números o une un chisme con otro valor"
+                       : "esta operación solo funciona con números (cabal o con vuelto)");
+}
+
+static double como_decimal(const ValorRP *v) {
+    return v->tipo == RP_CABAL ? (double)v->dato.cabal : v->dato.con_vuelto;
+}
+
+int valor_operar(char op, const ValorRP *a, const ValorRP *b, ValorRP *resultado, char *error, size_t n) {
+    TipoRP tipo;
+    if (!tipo_operacion(op, a->tipo, b->tipo, &tipo)) {
+        mensaje_operacion_invalida(op, a->tipo, b->tipo, error, n);
+        return 0;
+    }
+    resultado->tipo = tipo;
+
+    if (tipo == RP_CHISME) {
+        char texto_a[512], texto_b[512];
+        const char *ta = a->tipo == RP_CHISME ? a->dato.chisme : texto_a;
+        const char *tb = b->tipo == RP_CHISME ? b->dato.chisme : texto_b;
+        valor_texto(a, texto_a, sizeof texto_a);
+        valor_texto(b, texto_b, sizeof texto_b);
+        size_t la = strlen(ta), lb = strlen(tb);
+        char *unido = xmalloc(la + lb + 1);
+        memcpy(unido, ta, la);
+        memcpy(unido + la, tb, lb + 1);
+        resultado->dato.chisme = unido;
+        return 1;
+    }
+
+    if (op == '/' && como_decimal(b) == 0) {
+        snprintf(error, n, "división entre cero");
+        resultado->tipo = RP_NI_MAIZ;
+        return 0;
+    }
+    if (tipo == RP_CABAL) {
+        long long x = a->dato.cabal, y = b->dato.cabal;
+        switch (op) {
+            case '+': resultado->dato.cabal = x + y; break;
+            case '-': resultado->dato.cabal = x - y; break;
+            case '*': resultado->dato.cabal = x * y; break;
+            default: resultado->dato.cabal = x / y;
+        }
+    } else {
+        double x = como_decimal(a), y = como_decimal(b);
+        switch (op) {
+            case '+': resultado->dato.con_vuelto = x + y; break;
+            case '-': resultado->dato.con_vuelto = x - y; break;
+            case '*': resultado->dato.con_vuelto = x * y; break;
+            default: resultado->dato.con_vuelto = x / y;
+        }
+    }
+    return 1;
 }

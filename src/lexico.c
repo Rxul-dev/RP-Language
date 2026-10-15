@@ -195,20 +195,49 @@ static void chisme(Lexico *lx, int linea, int columna) {
     }
 }
 
+/* 1 si el último token es un valor (5, x, "hola", ')'...): entonces un '-' que sigue es una resta */
+static int anterior_es_valor(const Lexico *lx) {
+    if (lx->tokens->cantidad == 0) return 0;
+    switch (lx->tokens->datos[lx->tokens->cantidad - 1].tipo) {
+        case TK_IDENT: case TK_CABAL: case TK_CON_VUELTO: case TK_CHISME:
+        case TK_SIMON: case TK_NEL: case TK_MAIZ: case TK_PAR_CIERRA:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+/* 1 si el byte es parte de un nombre (incluye los bytes de continuación de á, ñ, ...) */
+static int es_byte_de_nombre(unsigned char c) {
+    return es_digito((char)c) || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80;
+}
+
 static void simbolo(Lexico *lx, int linea, int columna) {
     const char *inicio = actual(lx);
     size_t n = (size_t)largo_utf8(inicio);
     if (n > lx->largo - lx->pos) n = lx->largo - lx->pos;
+    int pegado_a_nombre = lx->pos > 0 && es_byte_de_nombre((unsigned char)lx->fuente[lx->pos - 1]) &&
+                          largo_inicio_nombre(inicio + 1);
     avanzar(lx, n);
     switch (inicio[0]) {
+        case '(': emitir(lx, TK_PAR_ABRE, inicio, n, linea, columna); break;
+        case ')': emitir(lx, TK_PAR_CIERRA, inicio, n, linea, columna); break;
+        case ',': emitir(lx, TK_COMA, inicio, n, linea, columna); break;
+        case '+': emitir(lx, TK_MAS, inicio, n, linea, columna); break;
+        case '*': emitir(lx, TK_POR, inicio, n, linea, columna); break;
+        case '/': emitir(lx, TK_ENTRE, inicio, n, linea, columna); break;
+        case '-':
+            /* 'mi-pisto' parece un nombre con guion; para restar se dejan espacios: 'mi - pisto' */
+            if (pegado_a_nombre)
+                error_lexico(lx, inicio, n, linea, columna,
+                             "el '-' no se permite en nombres; si quiere restar, deje espacios (ej. 'a - b')");
+            else
+                emitir(lx, TK_MENOS, inicio, n, linea, columna);
+            break;
         case '=':
             error_lexico(lx, inicio, n, linea, columna,
                          "RP no usa '='; para declarar use 'fijate que <nombre> es <valor>' "
                          "y para asignar 'ponele <valor> a <nombre>'");
-            break;
-        case '-':
-            error_lexico(lx, inicio, n, linea, columna,
-                         "el signo '-' solo va pegado al inicio de un número (ej. -7); no se permite en nombres");
             break;
         case '.':
             error_lexico(lx, inicio, n, linea, columna,
@@ -240,7 +269,7 @@ void lexico_analizar(const char *fuente, int linea_inicial, ListaTokens *tokens,
             while (lx.pos < lx.largo && *actual(&lx) != '\n') avanzar(&lx, 1);
         } else if (*s == '"' || *s == '\'') {
             chisme(&lx, linea, columna);
-        } else if (es_digito(*s) || (*s == '-' && es_digito(s[1]))) {
+        } else if (es_digito(*s) || (*s == '-' && es_digito(s[1]) && !anterior_es_valor(&lx))) {
             numero(&lx, linea, columna);
         } else if (*s == '.' && es_digito(s[1])) {
             size_t n = largo_palabra(s, 1);

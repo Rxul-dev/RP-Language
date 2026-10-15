@@ -5,7 +5,11 @@
  *   CABAL       -?[0-9]+
  *   CON_VUELTO  -?[0-9]+\.[0-9]+
  *   CHISME      "[^"\n]*"  |  '[^'\n]*'
+ *   símbolos    ( ) , + - * /
  *   comentario  #[^\n]*                       (se descarta)
+ *
+ * Un '-' pegado a un dígito es el signo de un número (-7) solo si el token
+ * anterior no es un valor; después de un valor es una resta: 'x -7' = 'x - 7'.
  */
 #ifndef LEXICO_H
 #define LEXICO_H

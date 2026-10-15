@@ -16,7 +16,7 @@ void compilar(const char *fuente, Resultado *r) {
     /* El semántico solo corre sobre un AST completo; con errores previos aparecerían
      * errores falsos (p. ej. variables "no declaradas" en líneas que se descartaron). */
     if (resultado_ok(r)) {
-        Semantico sem = {&r->tabla, &r->errores_semanticos};
+        Semantico sem = {&r->tabla, &r->errores_semanticos, NULL};
         semantico_analizar(&sem, r->programa);
         r->semantico_ejecutado = 1;
     }

@@ -5,7 +5,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-typedef enum { FASE_LEXICA, FASE_SINTACTICA, FASE_SEMANTICA } Fase;
+typedef enum { FASE_LEXICA, FASE_SINTACTICA, FASE_SEMANTICA, FASE_EJECUCION } Fase;
 
 typedef struct {
     Fase fase;

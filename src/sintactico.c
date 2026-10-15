@@ -5,12 +5,14 @@
 
 #include "util.h"
 
-#define INICIO_SENTENCIA "las sentencias empiezan con 'fijate que', 'ponele' o 'que onda'"
+#define INICIO_SENTENCIA \
+    "las sentencias empiezan con 'fijate que', 'ponele', 'que onda', 'contame', 'chamba' o el nombre de una chamba"
 
 typedef struct {
     const ListaTokens *tokens;
     int pos;
     ListaErrores *errores;
+    const Token *chamba_abierta;  /* el nombre de la chamba cuyo cuerpo se está leyendo, o NULL */
 } Parser;
 
 /* ------------------------------------------------------------ utilidades */
@@ -62,16 +64,48 @@ static void saltar_linea(Parser *p) {
     while (!verificar(p, TK_SALTO) && !verificar(p, TK_FIN)) avanzar(p);
 }
 
+/* Modo pánico para una chamba con el encabezado mal escrito: se descarta todo hasta su
+ * 'ya estuvo' (o hasta la siguiente chamba) para no reportar su cuerpo como errores sueltos. */
+static void saltar_chamba(Parser *p) {
+    for (;;) {
+        saltar_linea(p);
+        if (verificar(p, TK_FIN)) return;
+        avanzar(p);  /* el salto de línea */
+        if (verificar(p, TK_YA)) {
+            saltar_linea(p);
+            return;
+        }
+        if (verificar(p, TK_CHAMBA)) {
+            p->pos--;  /* la siguiente chamba se analiza normalmente */
+            return;
+        }
+    }
+}
+
+static const char *simbolo_operador(TipoToken tipo) {
+    switch (tipo) {
+        case TK_MAS: return "+";
+        case TK_MENOS: return "-";
+        case TK_POR: return "*";
+        default: return "/";
+    }
+}
+
 /* ------------------------------------------------------------ reglas */
 
-static const Token *nombre_variable(Parser *p, const char *contexto) {
+/* `de_que` es "variable", "chamba" o "parámetro" */
+static const Token *leer_nombre(Parser *p, const char *de_que, const char *contexto) {
     const Token *t = actual(p);
     char buf[200];
     if (t->tipo == TK_IDENT) return avanzar(p);
     if (token_es_reservada(t->tipo))
-        return error_en(p, t, "'%s' es una palabra reservada y no puede usarse como nombre de variable", t->lexema);
-    return error_en(p, t, "se esperaba el nombre de una variable %s, pero se encontró %s",
-                    contexto, describir(t, buf, sizeof buf));
+        return error_en(p, t, "'%s' es una palabra reservada y no puede usarse como nombre de %s", t->lexema, de_que);
+    return error_en(p, t, "se esperaba el nombre de %s %s %s, pero se encontró %s",
+                    strcmp(de_que, "parámetro") == 0 ? "un" : "una", de_que, contexto, describir(t, buf, sizeof buf));
+}
+
+static const Token *nombre_variable(Parser *p, const char *contexto) {
+    return leer_nombre(p, "variable", contexto);
 }
 
 static Nodo *literal(const Token *t, TipoRP tipo, const char *lexema) {
@@ -83,8 +117,40 @@ static Nodo *literal(const Token *t, TipoRP tipo, const char *lexema) {
     return n;
 }
 
-/* valor → CABAL | CON_VUELTO | CHISME | 'simon' | 'nel' | 'ni' 'maiz' | IDENT */
-static Nodo *valor(Parser *p, const char *contexto) {
+static Nodo *expresion(Parser *p, const char *contexto);
+
+/* llamada → IDENT '(' [ expresion { ',' expresion } ] ')' */
+static Nodo *llamada(Parser *p) {
+    const Token *nombre_chamba = avanzar(p);
+    char buf[200], contexto[300];
+    avanzar(p);  /* '(' */
+    Nodo *n = nodo_nuevo(NODO_LLAMADA, nombre_chamba->linea);
+    n->nombre = xstrdup(nombre_chamba->lexema);
+    if (!verificar(p, TK_PAR_CIERRA)) {
+        for (;;) {
+            snprintf(contexto, sizeof contexto, "como argumento de '%s'", nombre_chamba->lexema);
+            Nodo *arg = expresion(p, contexto);
+            if (!arg) {
+                ast_liberar(n);
+                return NULL;
+            }
+            nodo_agregar_parametro(n, arg);
+            if (!verificar(p, TK_COMA)) break;
+            avanzar(p);
+        }
+    }
+    if (!verificar(p, TK_PAR_CIERRA)) {
+        error_en(p, actual(p), "falta ')' para cerrar la llamada a '%s' (se encontró %s); "
+                 "los argumentos se separan con comas", nombre_chamba->lexema, describir(actual(p), buf, sizeof buf));
+        ast_liberar(n);
+        return NULL;
+    }
+    avanzar(p);
+    return n;
+}
+
+/* factor → CABAL | CON_VUELTO | CHISME | 'simon' | 'nel' | 'ni' 'maiz' | IDENT | llamada | '(' expresion ')' */
+static Nodo *factor(Parser *p, const char *contexto) {
     const Token *t = actual(p);
     char buf[200];
     Nodo *n;
@@ -119,15 +185,62 @@ static Nodo *valor(Parser *p, const char *contexto) {
             avanzar(p);
             return literal(t, RP_NI_MAIZ, "ni maiz");
         case TK_IDENT:
+            if (siguiente(p)->tipo == TK_PAR_ABRE) return llamada(p);
             avanzar(p);
             n = nodo_nuevo(NODO_VARIABLE, t->linea);
             n->nombre = xstrdup(t->lexema);
             return n;
+        case TK_PAR_ABRE:
+            avanzar(p);
+            n = expresion(p, "después de '('");
+            if (!n) return NULL;
+            if (!verificar(p, TK_PAR_CIERRA)) {
+                error_en(p, actual(p), "falta ')' para cerrar el paréntesis (se encontró %s)",
+                         describir(actual(p), buf, sizeof buf));
+                ast_liberar(n);
+                return NULL;
+            }
+            avanzar(p);
+            return n;
+        case TK_MENOS:
+            return error_en(p, t, "se esperaba un valor %s, pero se encontró un '-' suelto; "
+                            "para un número negativo pegue el signo al número (ej. -5)", contexto);
         default:
             return error_en(p, t,
-                            "se esperaba un valor %s (número, chisme, simon, nel, ni maiz o una variable), "
-                            "pero se encontró %s", contexto, describir(t, buf, sizeof buf));
+                            "se esperaba un valor %s (número, chisme, simon, nel, ni maiz, una variable "
+                            "o una chamba), pero se encontró %s", contexto, describir(t, buf, sizeof buf));
     }
+}
+
+/* Construye una operación binaria con el operador actual; `siguiente_nivel` lee el lado derecho */
+static Nodo *operacion(Parser *p, Nodo *izq, Nodo *(*siguiente_nivel)(Parser *, const char *)) {
+    const Token *op = avanzar(p);
+    char contexto[40];
+    snprintf(contexto, sizeof contexto, "después de '%s'", op->lexema);
+    Nodo *der = siguiente_nivel(p, contexto);
+    if (!der) {
+        ast_liberar(izq);
+        return NULL;
+    }
+    Nodo *n = nodo_nuevo(NODO_OPERACION, op->linea);
+    n->operador = simbolo_operador(op->tipo)[0];
+    n->izq = izq;
+    n->der = der;
+    return n;
+}
+
+/* termino → factor { ('*' | '/') factor } */
+static Nodo *termino(Parser *p, const char *contexto) {
+    Nodo *n = factor(p, contexto);
+    while (n && (verificar(p, TK_POR) || verificar(p, TK_ENTRE))) n = operacion(p, n, factor);
+    return n;
+}
+
+/* expresion → termino { ('+' | '-') termino } */
+static Nodo *expresion(Parser *p, const char *contexto) {
+    Nodo *n = termino(p, contexto);
+    while (n && (verificar(p, TK_MAS) || verificar(p, TK_MENOS))) n = operacion(p, n, termino);
+    return n;
 }
 
 /* declaracion → 'fijate' 'que' IDENT [ 'es' valor ] */
@@ -145,7 +258,7 @@ static Nodo *declaracion(Parser *p) {
     Nodo *v = NULL;
     if (verificar(p, TK_ES)) {
         avanzar(p);
-        v = valor(p, "después de 'es'");
+        v = expresion(p, "después de 'es'");
         if (!v) return NULL;
     } else if (verificar(p, TK_IDENT)) {
         const char *extra = actual(p)->lexema;
@@ -168,12 +281,12 @@ static Nodo *asignacion(Parser *p) {
         return error_en(p, actual(p),
                         "falta el valor: la forma es 'ponele <valor> a <nombre>' (el valor va antes de la 'a')");
 
-    Nodo *v = valor(p, "después de 'ponele'");
+    Nodo *v = expresion(p, "después de 'ponele'");
     if (!v) return NULL;
 
     if (!verificar(p, TK_A)) {
         const Token *t = actual(p);
-        const char *texto = v->clase == NODO_LITERAL ? v->lexema : v->nombre;
+        const char *texto = v->clase == NODO_LITERAL ? v->lexema : v->clase == NODO_VARIABLE ? v->nombre : "<valor>";
         if (t->tipo == TK_IDENT)
             error_en(p, t, "falta la palabra 'a': escriba 'ponele %s a %s'", texto, t->lexema);
         else
@@ -212,7 +325,111 @@ static Nodo *consulta_tipo(Parser *p) {
     return n;
 }
 
-/* sentencia → declaracion | asignacion | consulta */
+/* contame → 'contame' expresion */
+static Nodo *contame(Parser *p) {
+    const Token *inicio = avanzar(p);
+    Nodo *v = expresion(p, "después de 'contame'");
+    if (!v) return NULL;
+    Nodo *n = nodo_nuevo(NODO_CONTAME, inicio->linea);
+    n->valor = v;
+    return n;
+}
+
+/* devolveme → 'devolveme' [ expresion ] */
+static Nodo *devolveme(Parser *p) {
+    const Token *inicio = avanzar(p);
+    Nodo *v = NULL;
+    if (!verificar(p, TK_SALTO) && !verificar(p, TK_FIN)) {
+        v = expresion(p, "después de 'devolveme'");
+        if (!v) return NULL;
+    }
+    Nodo *n = nodo_nuevo(NODO_DEVOLVEME, inicio->linea);
+    n->valor = v;
+    return n;
+}
+
+static void linea(Parser *p, Nodo *destino);
+
+/* chamba → 'chamba' IDENT '(' [ IDENT { ',' IDENT } ] ')' SALTO { linea } 'ya' 'estuvo' */
+static Nodo *chamba(Parser *p) {
+    const Token *inicio = avanzar(p);
+    char buf[200];
+    if (p->chamba_abierta)
+        return error_en(p, inicio, "no se puede declarar una chamba dentro de otra; "
+                        "¿olvidó cerrar '%s' con 'ya estuvo'?", p->chamba_abierta->lexema);
+
+    const Token *nombre_chamba = leer_nombre(p, "chamba", "después de 'chamba'");
+    if (!nombre_chamba) {
+        saltar_chamba(p);
+        return NULL;
+    }
+    Nodo *n = nodo_nuevo(NODO_CHAMBA, inicio->linea);
+    n->nombre = xstrdup(nombre_chamba->lexema);
+
+    if (!verificar(p, TK_PAR_ABRE)) {
+        error_en(p, actual(p), "falta '(' después del nombre: escriba 'chamba %s(<parámetros>)' "
+                 "(se encontró %s)", nombre_chamba->lexema, describir(actual(p), buf, sizeof buf));
+        goto error;
+    }
+    avanzar(p);
+    if (!verificar(p, TK_PAR_CIERRA)) {
+        for (;;) {
+            const Token *param = leer_nombre(p, "parámetro", "en la chamba");
+            if (!param) goto error;
+            Nodo *np = nodo_nuevo(NODO_PARAMETRO, param->linea);
+            np->nombre = xstrdup(param->lexema);
+            nodo_agregar_parametro(n, np);
+            if (!verificar(p, TK_COMA)) break;
+            avanzar(p);
+        }
+    }
+    if (!verificar(p, TK_PAR_CIERRA)) {
+        error_en(p, actual(p), "falta ')' para cerrar los parámetros de '%s' (se encontró %s); "
+                 "los parámetros se separan con comas", nombre_chamba->lexema, describir(actual(p), buf, sizeof buf));
+        goto error;
+    }
+    avanzar(p);
+    if (!verificar(p, TK_SALTO)) {
+        error_en(p, actual(p), "después de 'chamba %s(...)' va un salto de línea; el cuerpo se escribe "
+                 "en las líneas siguientes (sobra %s)", nombre_chamba->lexema, describir(actual(p), buf, sizeof buf));
+        goto error;
+    }
+
+    /* Cuerpo: líneas hasta 'ya estuvo' */
+    p->chamba_abierta = nombre_chamba;
+    for (;;) {
+        if (verificar(p, TK_SALTO)) {
+            avanzar(p);
+        } else if (verificar(p, TK_FIN)) {
+            error_en(p, inicio, "la chamba '%s' no se cerró: falta 'ya estuvo' al final", nombre_chamba->lexema);
+            p->chamba_abierta = NULL;
+            ast_liberar(n);
+            return NULL;
+        } else if (verificar(p, TK_YA)) {
+            avanzar(p);
+            if (!verificar(p, TK_ESTUVO)) {
+                error_en(p, actual(p), "se esperaba 'estuvo' después de 'ya': la chamba se cierra con 'ya estuvo' "
+                         "(se encontró %s)", describir(actual(p), buf, sizeof buf));
+                p->chamba_abierta = NULL;
+                ast_liberar(n);
+                return NULL;
+            }
+            avanzar(p);
+            break;
+        } else {
+            linea(p, n);
+        }
+    }
+    p->chamba_abierta = NULL;
+    return n;
+
+error:
+    ast_liberar(n);
+    saltar_chamba(p);
+    return NULL;
+}
+
+/* sentencia → declaracion | asignacion | consulta | contame | devolveme | chamba | llamada */
 static Nodo *sentencia(Parser *p) {
     const Token *t = actual(p);
     char buf[200];
@@ -220,8 +437,14 @@ static Nodo *sentencia(Parser *p) {
         case TK_FIJATE: return declaracion(p);
         case TK_PONELE: return asignacion(p);
         case TK_QUE: return consulta_tipo(p);
+        case TK_CONTAME: return contame(p);
+        case TK_DEVOLVEME: return devolveme(p);
+        case TK_CHAMBA: return chamba(p);
+        case TK_YA:
+            return error_en(p, t, "'ya estuvo' cierra una chamba, pero no hay ninguna chamba abierta");
         default: break;
     }
+    if (t->tipo == TK_IDENT && siguiente(p)->tipo == TK_PAR_ABRE) return llamada(p);
     if (t->tipo == TK_IDENT && siguiente(p)->tipo == TK_ES)
         return error_en(p, t,
                         "falta 'fijate que': para declarar escriba 'fijate que %s es ...' "
@@ -229,33 +452,39 @@ static Nodo *sentencia(Parser *p) {
     return error_en(p, t, "no se esperaba %s al inicio; " INICIO_SENTENCIA, describir(t, buf, sizeof buf));
 }
 
+/* linea → sentencia SALTO   (la sentencia se agrega a `destino`: el programa o una chamba) */
+static void linea(Parser *p, Nodo *destino) {
+    char buf[200];
+    /* El léxico ya reportó esta línea: no se agregan errores en cascada */
+    if (linea_con_error_lexico(p)) {
+        if (verificar(p, TK_CHAMBA) && !p->chamba_abierta)
+            saltar_chamba(p);
+        else
+            saltar_linea(p);
+        return;
+    }
+    Nodo *s = sentencia(p);
+    if (s && !verificar(p, TK_SALTO)) {
+        error_en(p, actual(p), "se esperaba el fin de la línea, pero sobra %s", describir(actual(p), buf, sizeof buf));
+        ast_liberar(s);
+        s = NULL;
+    }
+    if (s)
+        nodo_agregar_sentencia(destino, s);
+    else
+        saltar_linea(p);  /* modo pánico */
+}
+
 /* programa → { linea } FIN */
 Nodo *sintactico_analizar(const ListaTokens *tokens, ListaErrores *errores) {
-    Parser p = {tokens, 0, errores};
+    Parser p = {tokens, 0, errores, NULL};
     Nodo *programa = nodo_nuevo(NODO_PROGRAMA, 1);
-    char buf[200];
 
     while (!verificar(&p, TK_FIN)) {
-        if (verificar(&p, TK_SALTO)) {
+        if (verificar(&p, TK_SALTO))
             avanzar(&p);
-            continue;
-        }
-        /* El léxico ya reportó esta línea: no se agregan errores en cascada */
-        if (linea_con_error_lexico(&p)) {
-            saltar_linea(&p);
-            continue;
-        }
-        Nodo *s = sentencia(&p);
-        if (s && !verificar(&p, TK_SALTO)) {
-            error_en(&p, actual(&p), "se esperaba el fin de la línea, pero sobra %s",
-                     describir(actual(&p), buf, sizeof buf));
-            ast_liberar(s);
-            s = NULL;
-        }
-        if (s)
-            nodo_agregar_sentencia(programa, s);
         else
-            saltar_linea(&p);  /* modo pánico */
+            linea(&p, programa);
     }
     return programa;
 }

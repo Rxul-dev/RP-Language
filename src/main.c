@@ -1,8 +1,8 @@
 /* Punto de entrada del compilador de RP.
  *
  * Uso:
- *   rp programa.rp        muestra todas las fases y ejecuta
- *   rp programa.rp -s     solo ejecuta (muestra la salida del programa)
+ *   rp programa.rp        ejecuta y muestra solo la salida del programa
+ *   rp programa.rp -f     muestra además cada fase: tokens, AST, tabla AST y tabla de símbolos
  *   rp -i                 modo interactivo, línea por línea
  */
 #include <stdio.h>
@@ -83,7 +83,11 @@ static int compilar_archivo(const char *ruta, int solo_salida) {
         if (!solo_salida) reporte_titulo("FASE 4 · EJECUCIÓN  →  salida del programa");
         Interprete in;
         interprete_iniciar(&in, NULL, NULL);
-        interprete_ejecutar(&in, r.programa);
+        if (!interprete_ejecutar(&in, r.programa)) {
+            ListaErrores error = {&in.error, 1, 1};
+            reporte_errores(&error);
+            codigo = 1;
+        }
         if (!solo_salida) {
             printf("\nMemoria al terminar:\n");
             reporte_memoria(&in);
@@ -96,6 +100,28 @@ static int compilar_archivo(const char *ruta, int solo_salida) {
     return codigo;
 }
 
+/* 1 si la línea empieza con la palabra `palabra` (ignora espacios al inicio) */
+static int empieza_con(const char *linea, const char *palabra) {
+    linea += strspn(linea, " \t");
+    size_t n = strlen(palabra);
+    return strncmp(linea, palabra, n) == 0 && (linea[n] == '\0' || linea[n] == ' ' || linea[n] == '\t' ||
+                                               linea[n] == '(' || linea[n] == '#');
+}
+
+/* Una chamba ocupa varias líneas: se siguen leyendo hasta 'ya estuvo'. Devuelve las líneas leídas. */
+static int leer_chamba(char *buf, size_t n) {
+    char linea[1024];
+    int lineas = 0;
+    while (printf("...> "), fflush(stdout), fgets(linea, sizeof linea, stdin)) {
+        lineas++;
+        linea[strcspn(linea, "\r\n")] = '\0';
+        strncat(buf, "\n", n - strlen(buf) - 1);
+        strncat(buf, linea, n - strlen(buf) - 1);
+        if (empieza_con(linea, "ya")) break;
+    }
+    return lineas;
+}
+
 static int modo_interactivo(void) {
     printf("RP interactivo · escriba sentencias de RP línea por línea\n");
     printf("Comandos: :tabla (símbolos), :memoria, :ast (última línea), :salir\n");
@@ -103,12 +129,14 @@ static int modo_interactivo(void) {
     TablaSimbolos tabla;
     ts_iniciar(&tabla);
     ListaErrores errores_semanticos = {0};
-    Semantico sem = {&tabla, &errores_semanticos};
+    Semantico sem = {&tabla, &errores_semanticos, NULL};
     Interprete in;
     interprete_iniciar(&in, NULL, NULL);
     Nodo *ultimo = NULL;
+    /* Los AST se guardan hasta el final: el intérprete apunta a las chambas declaradas en ellos */
+    Nodo *anteriores = nodo_nuevo(NODO_PROGRAMA, 0);
     int numero_linea = 0;
-    char linea[1024];
+    char linea[1024], fuente[16384];
 
     for (;;) {
         printf("rp> ");
@@ -130,9 +158,13 @@ static int modo_interactivo(void) {
         if (*comando == '\0') continue;
 
         numero_linea++;
+        int primera_linea = numero_linea;
+        snprintf(fuente, sizeof fuente, "%s", linea);
+        if (empieza_con(comando, "chamba")) numero_linea += leer_chamba(fuente, sizeof fuente);
+
         ListaTokens tokens = {0};
         ListaErrores errores = {0};
-        lexico_analizar(linea, numero_linea, &tokens, &errores);
+        lexico_analizar(fuente, primera_linea, &tokens, &errores);
         Nodo *programa = sintactico_analizar(&tokens, &errores);
         tokens_liberar(&tokens);
 
@@ -147,17 +179,20 @@ static int modo_interactivo(void) {
                 if (errores_semanticos.cantidad > antes) {
                     ListaErrores nuevos = {errores_semanticos.datos + antes, errores_semanticos.cantidad - antes, 0};
                     reporte_errores(&nuevos);
-                } else {
-                    interprete_ejecutar_sentencia(&in, programa->sentencias[i]);
+                } else if (!interprete_ejecutar_sentencia(&in, programa->sentencias[i])) {
+                    ListaErrores error = {&in.error, 1, 1};
+                    reporte_errores(&error);
+                    in.hay_error = 0;  /* en modo interactivo se puede seguir escribiendo */
                 }
             }
-            ast_liberar(ultimo);
+            if (ultimo) nodo_agregar_sentencia(anteriores, ultimo);
             ultimo = programa;
         }
         errores_liberar(&errores);
     }
 
     ast_liberar(ultimo);
+    ast_liberar(anteriores);
     interprete_liberar(&in);
     ts_liberar(&tabla);
     errores_liberar(&errores_semanticos);
@@ -167,8 +202,8 @@ static int modo_interactivo(void) {
 static void ayuda(const char *programa) {
     printf("Compilador del lenguaje RP\n\n");
     printf("Uso:\n");
-    printf("  %s archivo.rp       muestra todas las fases y ejecuta\n", programa);
-    printf("  %s archivo.rp -s    solo muestra la salida del programa\n", programa);
+    printf("  %s archivo.rp       ejecuta y muestra solo la salida del programa\n", programa);
+    printf("  %s archivo.rp -f    muestra además cada fase: tokens, AST, tabla AST y tabla de símbolos\n", programa);
     printf("  %s -i               modo interactivo línea por línea\n", programa);
 }
 
@@ -178,10 +213,11 @@ int main(int argc, char **argv) {
     SetConsoleCP(CP_UTF8);
 #endif
     const char *archivo = NULL;
-    int solo_salida = 0, interactivo = 0;
+    int solo_salida = 1, interactivo = 0;  /* por defecto solo se muestra la salida del programa */
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--solo-salida") == 0) solo_salida = 1;
+        if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fases") == 0) solo_salida = 0;
+        else if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--solo-salida") == 0) solo_salida = 1;
         else if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--interactivo") == 0) interactivo = 1;
         else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--ayuda") == 0) { ayuda(argv[0]); return 0; }
         else archivo = argv[i];

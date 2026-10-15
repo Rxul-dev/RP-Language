@@ -71,7 +71,7 @@ modifica el código en `src/`.
 ./rp ejemplos/completo.rp
 ```
 
-Al final de lo que se muestra deben aparecer estas dos líneas:
+Debe mostrar estas dos líneas:
 
 ```
 cabal
@@ -119,7 +119,7 @@ Debe mostrar `Listo: se creo rp.exe`.
 .\rp.exe ejemplos\completo.rp
 ```
 
-Al final de lo que se muestra deben aparecer `cabal` y `chisme`.
+Debe mostrar `cabal` y `chisme`.
 
 ---
 
@@ -130,11 +130,11 @@ usan `\` en lugar de `/`.
 
 | Mac | Windows | Qué hace |
 |---|---|---|
-| `./rp archivo.rp` | `.\rp.exe archivo.rp` | Muestra todas las fases del compilador y ejecuta el programa |
-| `./rp archivo.rp -s` | `.\rp.exe archivo.rp -s` | Solo ejecuta y muestra la salida del programa |
+| `./rp archivo.rp` | `.\rp.exe archivo.rp` | Ejecuta el programa y muestra solo su resultado |
+| `./rp archivo.rp -f` | `.\rp.exe archivo.rp -f` | Muestra además cada fase del compilador: tokens, AST, tabla AST y tabla de símbolos |
 | `./rp -i` | `.\rp.exe -i` | Modo interactivo: escriba instrucciones una por una |
 | `./rp -h` | `.\rp.exe -h` | Muestra la ayuda |
-| `make prueba` | `.\compilar.bat prueba` | Corre las 47 pruebas automáticas |
+| `make prueba` | `.\compilar.bat prueba` | Corre las 94 pruebas automáticas |
 
 ### Crear su propio archivo `.rp`
 
@@ -164,6 +164,9 @@ chisme
 rp> :salir
 ```
 
+Una chamba ocupa varias líneas: al escribir `chamba ...` el modo interactivo
+sigue pidiendo líneas (con `...>`) hasta que escriba `ya estuvo`.
+
 Comandos especiales del modo interactivo:
 
 | Comando | Qué muestra |
@@ -175,15 +178,18 @@ Comandos especiales del modo interactivo:
 
 ### Qué muestra el compilador
 
-Al ejecutar un archivo sin `-s`, se muestra en orden:
+Normalmente solo se ve el resultado del programa (o los errores, si los hay).
+Con `-f` (de *fases*) se ve también cómo trabaja el compilador por dentro, en orden:
 
 1. **Código fuente** con números de línea.
 2. **Tabla de tokens** (fase léxica): cada pieza del código con su tipo, línea y columna.
 3. **AST** (fase sintáctica): el programa dibujado como árbol y como tabla.
-4. **Tabla de símbolos** (fase semántica): cada variable con su tipo e historial.
+4. **Tabla de símbolos** (fase semántica): cada variable, parámetro y chamba con su ámbito, tipo e historial.
 5. **Ejecución**: lo que imprime el programa y el valor final de cada variable.
 
-Si hay errores, se muestran todos al final y el programa no se ejecuta.
+Si hay errores, se muestran todos al final y el programa no se ejecuta. Algunos
+errores solo se pueden ver al ejecutar (por ejemplo, dividir entre cero); esos
+detienen el programa en la línea donde ocurren.
 
 ---
 
@@ -368,6 +374,75 @@ Este programa está en `ejemplos/completo.rp`. Hay más ejemplos en la carpeta
 | `errores_lexicos.rp` | Errores de escritura: nombres o números mal formados, símbolos no permitidos |
 | `errores_sintacticos.rp` | Instrucciones mal armadas: palabras faltantes o fuera de orden |
 | `errores_semanticos.rp` | Instrucciones bien escritas pero sin sentido: usar una variable que no existe |
+| `chambas.rp` | Operaciones, `contame` y chambas (funciones) |
+
+### 5.7 Mostrar un valor
+
+`que onda` muestra el **tipo**; para mostrar el **valor** se usa `contame`
+("contame el chisme"):
+
+```
+fijate que nombre es "Ana"
+contame nombre           # Ana
+contame 19               # 19
+```
+
+### 5.8 Operaciones
+
+Se puede sumar `+`, restar `-`, multiplicar `*` y dividir `/`. Primero se hacen
+`*` y `/`, y luego `+` y `-`; los paréntesis cambian ese orden:
+
+```
+contame 2 + 3 * 4        # 14
+contame (2 + 3) * 4      # 20
+fijate que total es edad * 2 - 1
+ponele total + 1 a total
+```
+
+- Entre dos `cabal` el resultado es `cabal`, y la división es entera: `7 / 2` da `3`.
+  Si alguno es `con vuelto`, el resultado es `con vuelto`: `7 / 2.0` da `3.5`.
+- `+` con un `chisme` une los textos: `"Edad: " + 19` da `Edad: 19`.
+- Para restar deje espacios: `edad - 1`. Pegado a un nombre (`mi-pisto`) el `-`
+  se toma como un nombre mal escrito.
+- Dividir entre cero detiene el programa con un error de ejecución.
+
+### 5.9 Chambas (funciones)
+
+Una **chamba** es un trabajito con nombre que el programa hace cada vez que se lo
+piden. Se declara con `chamba nombre(parámetros)`, el cuerpo va en las líneas
+siguientes y se cierra con `ya estuvo`. Con `devolveme` la chamba entrega su
+resultado:
+
+```
+chamba sumar(x, y)
+    devolveme x + y
+ya estuvo
+
+contame sumar(30, 20)              # 50
+fijate que r es sumar(30, 20) * 2  # se puede usar dentro de una operación
+```
+
+Una chamba que no necesita devolver nada usa `devolveme` solo (o lo omite) y
+entrega `ni maiz`. Se puede llamar como instrucción sola:
+
+```
+chamba avisar(mensaje)
+    contame mensaje
+    devolveme
+ya estuvo
+
+avisar("ya terminé")
+```
+
+Reglas de las chambas:
+
+- Se declaran antes de llamarlas, y no puede haber una chamba dentro de otra.
+- Se llaman con la misma cantidad de valores que parámetros tienen.
+- Los parámetros y las variables creadas adentro son **locales**: no se ven
+  afuera de la chamba y se borran al terminar.
+- Una chamba puede leer las variables globales, pero no cambiarlas con `ponele`;
+  para cambiar algo, devuelva el valor con `devolveme` y asígnelo afuera.
+- Al llegar a `devolveme` la chamba termina; las líneas que siguen no se ejecutan.
 
 ---
 
@@ -383,6 +458,13 @@ Cada instrucción va en su propia línea.
 | `fijate que <nombre> es <valor>` | Crear una variable con un valor | `fijate que edad es 19` | `edad = 19` |
 | `ponele <valor> a <nombre>` | Cambiar el valor de una variable que ya existe | `ponele 20 a edad` | `edad = 20` |
 | `que onda <nombre>` | Mostrar el tipo actual de una variable | `que onda edad` | `print(type(edad))` |
+| `contame <valor>` | Mostrar un valor | `contame edad + 1` | `print(edad + 1)` |
+| `chamba <nombre>(<parámetros>)` … `ya estuvo` | Declarar una chamba (función) | `chamba sumar(x, y)` | `def sumar(x, y):` |
+| `devolveme [<valor>]` | Terminar la chamba y devolver un valor (sin valor devuelve `ni maiz`) | `devolveme x + y` | `return x + y` |
+| `<nombre>(<valores>)` | Llamar una chamba | `avisar("hola")` | `avisar("hola")` |
+
+Donde dice `<valor>` se puede escribir una operación: números, textos, variables,
+llamadas a chambas, `+ - * /` y paréntesis (sección 5.8).
 
 ### Tipos de dato
 
@@ -409,7 +491,8 @@ dígitos → `cabal`. Detalles:
 - Se permiten la `ñ` y las tildes: `año`, `canción`.
 - No pueden tener espacios ni símbolos como `-`, `@` o `$`.
 - No pueden ser una **palabra reservada**: `fijate`, `que`, `es`, `ponele`, `a`,
-  `simon`, `nel`, `ni`, `maiz`, `onda`.
+  `simon`, `nel`, `ni`, `maiz`, `onda`, `chamba`, `ya`, `estuvo`, `devolveme`,
+  `contame`. Las mismas reglas valen para los nombres de chambas y parámetros.
 - Una variable se crea una sola vez con `fijate que`; después se cambia con `ponele`.
 - Las mayúsculas importan: `Edad` y `edad` son variables distintas, y `Fijate`
   no es una palabra reservada.
@@ -427,6 +510,11 @@ dígitos → `cabal`. Detalles:
 | `ponele 20 edad` | No | Falta la palabra `a` |
 | `ponele 500 a sueldo` | No | `sueldo` no fue creada antes |
 | `edad = 20` | No | RP no usa `=` |
+| `fijate que mi-pisto es 1` | No | El `-` no va en nombres (para restar: `mi - pisto`) |
+| `chamba sumar(x, x)` | No | Parámetro repetido |
+| `sumar(1)` | No | `sumar` recibe 2 valores |
+| `devolveme 5` (afuera de una chamba) | No | `devolveme` solo va dentro de una chamba |
+| `contame "hola" - 1` | No | `-` solo funciona con números |
 
 ### Mensajes de error
 
@@ -438,6 +526,7 @@ solo se ejecuta si no tiene ningún error.
 ✘ Error léxico (línea 1, columna 12): '2do' no es un nombre válido: los nombres no pueden empezar con un dígito
 ✘ Error sintáctico (línea 6, columna 11): falta la palabra 'a': escriba 'ponele 20 a edad'
 ✘ Error semántico (línea 3): no se puede asignar a 'sueldo' porque no ha sido declarada; declárela primero con 'fijate que sueldo'
+✘ Error de ejecución (línea 4): división entre cero
 ```
 
 ---
@@ -456,7 +545,7 @@ programa.rp ─► LÉXICO ─► tokens ─► SINTÁCTICO ─► AST ─► SE
 | **1. Análisis léxico** | Lee el texto letra por letra y lo separa en piezas llamadas *tokens* (palabras, números, textos) | `2do` (un nombre no empieza con número) | `src/lexico.c` |
 | **2. Análisis sintáctico** | Revisa que los tokens formen instrucciones válidas según la gramática y construye el *AST* | `ponele 20 edad` (falta la `a`) | `src/sintactico.c` |
 | **3. Análisis semántico** | Revisa que las instrucciones tengan sentido: que las variables existan y qué tipo tiene cada una. Llena la *tabla de símbolos* | `ponele 500 a sueldo` (`sueldo` no existe) | `src/semantico.c` |
-| **4. Ejecución** | Recorre el AST y ejecuta cada instrucción | — | `src/interprete.c` |
+| **4. Ejecución** | Recorre el AST y ejecuta cada instrucción | `10 / 0` (división entre cero) | `src/interprete.c` |
 
 ### Gramática
 
@@ -467,12 +556,22 @@ escrita en notación EBNF: `|` significa "o", `[ ]` significa "opcional" y
 ```
 programa    → { linea } FIN
 linea       → [ sentencia ] SALTO
-sentencia   → declaracion | asignacion | consulta
-declaracion → 'fijate' 'que' IDENT [ 'es' valor ]
-asignacion  → 'ponele' valor 'a' IDENT
+sentencia   → declaracion | asignacion | consulta | contame | devolveme | chamba | llamada
+declaracion → 'fijate' 'que' IDENT [ 'es' expresion ]
+asignacion  → 'ponele' expresion 'a' IDENT
 consulta    → 'que' 'onda' IDENT
-valor       → CABAL | CON_VUELTO | CHISME | 'simon' | 'nel' | 'ni' 'maiz' | IDENT
+contame     → 'contame' expresion
+devolveme   → 'devolveme' [ expresion ]
+chamba      → 'chamba' IDENT '(' [ IDENT { ',' IDENT } ] ')' SALTO { linea } 'ya' 'estuvo'
+llamada     → IDENT '(' [ expresion { ',' expresion } ] ')'
+expresion   → termino { ('+' | '-') termino }
+termino     → factor { ('*' | '/') factor }
+factor      → CABAL | CON_VUELTO | CHISME | 'simon' | 'nel' | 'ni' 'maiz'
+            | IDENT | llamada | '(' expresion ')'
 ```
+
+La precedencia de las operaciones sale de la gramática: `expresion` se arma con
+`termino`s, así que `*` y `/` se agrupan antes que `+` y `-`.
 
 Cada token se reconoce con una expresión regular:
 
@@ -481,20 +580,35 @@ IDENT       [letra _][letra dígito _]*      nombre de variable (que no sea pala
 CABAL       -?[0-9]+                        número entero
 CON_VUELTO  -?[0-9]+\.[0-9]+                número decimal
 CHISME      "[^"\n]*"  |  '[^'\n]*'         texto entre comillas
+símbolos    ( ) , + - * /
 ```
+
+Un `-` pegado a un dígito es el signo de un número (`-7`) solo si lo anterior no
+es un valor; después de un valor es una resta: `x -7` es `x - 7`.
 
 ### Decisiones de diseño
 
 - **Parser de descenso recursivo:** cada regla de la gramática es una función
-  de C (`declaracion()`, `asignacion()`, `valor()`...). Está escrito a mano, sin
+  de C (`declaracion()`, `asignacion()`, `expresion()`, `chamba()`...). Está escrito a mano, sin
   herramientas generadoras como Lex/Yacc o ANTLR.
 - **Recuperación de errores en "modo pánico":** al encontrar un error, el
   compilador lo anota, se salta el resto de esa línea y sigue con la siguiente.
   Por eso puede mostrar todos los errores de una sola vez.
 - **Tabla de símbolos con tabla hash:** cada nombre se convierte en un número
   (función hash *djb2*) que indica dónde guardarlo, para encontrar las variables
-  rápido. Guarda nombre, tipo actual, ámbito, línea de declaración, líneas donde
-  se asigna y se usa, e historial de tipos.
+  rápido. Guarda nombre, clase (variable, parámetro o chamba), tipo actual,
+  ámbito, línea de declaración, líneas donde se asigna y se usa, e historial de tipos.
+- **Ámbitos:** hay un ámbito global y uno por cada chamba (`chamba sumar`). Dentro
+  de una chamba se busca primero en su ámbito y luego en el global; al salir, sus
+  símbolos ya no se encuentran desde afuera.
+- **Tipos que se saben al ejecutar:** el tipo de un parámetro o de lo que devuelve
+  una chamba depende de cada llamada, así que en la tabla aparece como `dinámico`.
+  Si una operación usa uno de esos valores, el intérprete revisa los tipos al
+  ejecutarla.
+- **Marcos de llamada:** la memoria del intérprete es una pila. Cada llamada a una
+  chamba apila sus parámetros y variables locales (un *marco*) y los quita al
+  terminar. Si una chamba se llama a sí misma más de 1000 veces una dentro de
+  otra, el programa se detiene con un error en lugar de quedarse colgado.
 - **Tipado dinámico en C:** C exige que cada variable tenga un tipo fijo, pero en
   RP una variable puede pasar de `cabal` a `chisme`. Por eso cada valor de RP se
   guarda junto con una etiqueta que indica su tipo (una *unión etiquetada*,
@@ -528,10 +642,10 @@ lenguaje-rp-c/
     ├── ast.c             Estructura de los nodos del AST
     ├── semantico.c       Fase 3: análisis semántico (revisa el AST)
     ├── tabla_simbolos.c  Tabla de símbolos (tabla hash)
-    ├── interprete.c      Fase 4: ejecuta el programa
+    ├── interprete.c      Fase 4: ejecuta el programa (pila de marcos para las chambas)
     ├── reportes.c        Dibuja las tablas y el árbol en la terminal
     ├── token.c           Tipos de token y palabras reservadas
-    ├── valor.c           Tipos de dato de RP y sus valores
+    ├── valor.c           Tipos de dato de RP, sus valores y las operaciones + - * /
     ├── errores.c         Lista de errores y sus mensajes
     └── util.c            Funciones de apoyo (memoria, texto UTF-8)
 ```
@@ -569,6 +683,9 @@ Cada archivo `.c` tiene un `.h` con el mismo nombre que declara sus funciones.
 | **AST** (árbol de sintaxis abstracta) | Representación del programa en forma de árbol: la raíz es el programa, las ramas son las instrucciones y las hojas son los valores |
 | **AST decorado** | El AST después de que el análisis semántico le anota el tipo de cada nodo |
 | **Tabla de símbolos** | Registro de todas las variables del programa con su tipo y dónde se usan |
-| **Ámbito** | La parte del programa donde existe una variable. En RP todas son globales |
+| **Ámbito** | La parte del programa donde existe una variable: el global o el de una chamba |
+| **Chamba** (función) | Grupo de instrucciones con nombre que se ejecuta cada vez que se llama |
+| **Parámetro** / **argumento** | El parámetro es el nombre en la declaración (`x` en `chamba doble(x)`); el argumento es el valor que se pasa al llamarla (`5` en `doble(5)`) |
+| **Marco de llamada** | El espacio en memoria con los parámetros y variables locales de una llamada a una chamba |
 | **Tipado dinámico** | El tipo de una variable lo determina el valor que guarda y puede cambiar |
 | **Intérprete** | Parte que ejecuta el programa directamente, instrucción por instrucción |

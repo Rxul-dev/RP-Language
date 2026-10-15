@@ -1,0 +1,19 @@
+# Chambas (funciones) en RP
+# Una chamba se declara con 'chamba nombre(parámetros)' y se cierra con 'ya estuvo'.
+# 'devolveme <valor>' devuelve un resultado; 'contame <valor>' lo muestra.
+
+fijate que x es 30
+fijate que y es 20
+
+chamba sumar(x, y)
+    devolveme x + y
+ya estuvo
+
+chamba avisar(mensaje)
+    contame mensaje
+    devolveme       # sin valor: devuelve ni maiz
+ya estuvo
+
+fijate que resultado es sumar(x, y) * 2 / 4 - 3    # (30 + 20) * 2 / 4 - 3 = 22
+avisar("resultado calculado")
+contame resultado

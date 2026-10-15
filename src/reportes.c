@@ -208,33 +208,37 @@ static void unir_lineas(const ListaEnteros *l, char *buf, size_t n) {
 
 void reporte_tabla_simbolos(const TablaSimbolos *tabla) {
     static const char *const encabezados[] = {
-        "Nombre", "Tipo actual", "Ámbito", "Declarada", "Asignada en", "Usada en", "Historial de tipos",
+        "Nombre", "Clase", "Tipo actual", "Ámbito", "Declarada", "Asignada en", "Usada en", "Historial de tipos",
     };
     if (tabla->cantidad == 0) {
         printf("(vacía)\n");
         return;
     }
     Tabla t;
-    tabla_iniciar(&t, 7, encabezados);
+    tabla_iniciar(&t, 8, encabezados);
     char buf[1024];
     for (int i = 0; i < tabla->cantidad; i++) {
         const Simbolo *s = tabla->orden[i];
         int f = tabla_fila(&t);
         tabla_poner(&t, f, 0, "%s", s->nombre);
-        tabla_poner(&t, f, 1, "%s", tipo_rp_nombre(s->tipo));
-        tabla_poner(&t, f, 2, "%s", s->ambito);
-        tabla_poner(&t, f, 3, "%d", s->linea_declaracion);
+        if (s->clase == SIM_CHAMBA)
+            tabla_poner(&t, f, 1, "chamba (%d parámetros)", s->num_parametros);
+        else
+            tabla_poner(&t, f, 1, "%s", clase_simbolo_nombre(s->clase));
+        tabla_poner(&t, f, 2, "%s", tipo_rp_nombre(s->tipo));
+        tabla_poner(&t, f, 3, "%s", s->ambito);
+        tabla_poner(&t, f, 4, "%d", s->linea_declaracion);
         unir_lineas(&s->asignaciones, buf, sizeof buf);
-        tabla_poner(&t, f, 4, "%s", buf);
-        unir_lineas(&s->usos, buf, sizeof buf);
         tabla_poner(&t, f, 5, "%s", buf);
+        unir_lineas(&s->usos, buf, sizeof buf);
+        tabla_poner(&t, f, 6, "%s", buf);
         buf[0] = '\0';
         for (int k = 0; k < s->historial.cantidad; k++) {
             size_t usado = strlen(buf);
             snprintf(buf + usado, sizeof buf - usado, "%s%s", k ? " → " : "",
                      tipo_rp_nombre((TipoRP)s->historial.datos[k]));
         }
-        tabla_poner(&t, f, 6, "%s", buf);
+        tabla_poner(&t, f, 7, "%s", buf);
     }
     tabla_imprimir(&t);
     tabla_liberar(&t);
