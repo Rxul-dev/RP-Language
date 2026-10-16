@@ -1,3 +1,17 @@
+/* ANALIZADOR SEMÁNTICO (fase 3)
+ *
+ * ¿Qué hace?
+ *   Revisa que el programa tenga sentido, aunque esté bien escrito.
+ *   'ponele 5 a sueldo' está bien escrito, pero no tiene sentido si 'sueldo'
+ *   nunca se creó con 'fijate que'.
+ *
+ *   Mientras revisa, llena la tabla de símbolos (todas las variables y chambas)
+ *   y anota en el AST el tipo de cada valor.
+ *
+ * ¿Cómo está ordenado?
+ *   Una función por cada clase de instrucción: declaracion(), asignacion(),
+ *   chamba(), devolveme()... semantico_visitar() elige cuál usar.
+ */
 #include "semantico.h"
 
 static void anotar(Nodo *nodo, TipoRP tipo) {

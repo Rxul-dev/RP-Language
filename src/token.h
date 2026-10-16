@@ -1,9 +1,16 @@
-/* Tokens del lenguaje RP. */
+/* Tokens del lenguaje RP: las piezas en que el analizador léxico parte el programa.
+ *
+ * Para agregar un token nuevo:
+ *   1. Agréguelo a este enum. Si es una palabra reservada, póngalo antes de
+ *      TK_CONTAME: todo lo que va de TK_FIJATE a TK_CONTAME cuenta como reservado.
+ *   2. Agregue su nombre en la lista NOMBRES de token.c, en la misma posición.
+ *   3. Agréguelo a la tabla PALABRAS o SIMBOLOS de lexico.c.
+ */
 #ifndef TOKEN_H
 #define TOKEN_H
 
 typedef enum {
-    /* Palabras reservadas */
+    /* Palabras reservadas (siempre primero) */
     TK_FIJATE, TK_QUE, TK_ES, TK_PONELE, TK_A, TK_SIMON, TK_NEL, TK_NI, TK_MAIZ, TK_ONDA,
     TK_CHAMBA, TK_YA, TK_ESTUVO, TK_DEVOLVEME, TK_CONTAME,
     /* Nombres y literales */
@@ -34,7 +41,6 @@ typedef struct {
 const char *token_nombre(TipoToken tipo);
 const char *token_categoria(TipoToken tipo);
 int token_es_reservada(TipoToken tipo);
-TipoToken buscar_palabra_reservada(const char *lexema); /* TK_IDENT si no es reservada */
 void tokens_liberar(ListaTokens *l);
 
 #endif

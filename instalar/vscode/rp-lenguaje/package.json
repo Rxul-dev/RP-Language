@@ -2,7 +2,7 @@
   "name": "rp-lenguaje",
   "displayName": "Lenguaje RP",
   "description": "Logo, colores y botón para ejecutar programas del lenguaje RP (.rp)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "lenguaje-rp",
   "license": "MIT",
   "icon": "icono.png",

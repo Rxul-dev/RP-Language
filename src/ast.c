@@ -1,3 +1,15 @@
+/* AST (árbol de sintaxis abstracta)
+ *
+ * ¿Qué es?
+ *   El programa convertido en árbol. Por ejemplo 'contame 2 + 3' queda así:
+ *
+ *       Contame
+ *       └── Operacion (+)
+ *           ├── Literal (2)
+ *           └── Literal (3)
+ *
+ *   Aquí están las funciones para crear nodos, liberarlos y mostrarlos.
+ */
 #include "ast.h"
 
 #include <stdio.h>

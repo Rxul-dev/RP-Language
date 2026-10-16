@@ -1,557 +1,135 @@
 # Lenguaje RP
 
-<p align="center"><img src="logo/logo.png" alt="Logo del lenguaje RP" width="160"></p>
+<p align="center"><img src="logo/logo.png" alt="Logo del lenguaje RP" width="140"></p>
 
-RP es un lenguaje de programación pequeño cuyas instrucciones usan expresiones
-**chapinas** (el español coloquial de Guatemala). Por ejemplo, en vez de
-`edad = 19` se escribe `fijate que edad es 19`.
-
-Este repositorio contiene el **compilador de RP escrito en C**.
+RP es un lenguaje de programación con instrucciones en español coloquial de
+Guatemala. Este repositorio contiene su compilador, escrito en C sin
+dependencias externas.
 
 ```
-fijate que nombre es "Ana"     # crea una variable con un texto
-fijate que edad es 19          # crea una variable con un número
-ponele 20 a edad               # le cambia el valor
-que onda edad                  # muestra su tipo: cabal (número entero)
+fijate que nombre es "Ana"
+
+chamba saludar(persona)
+    devolveme "Hola, " + persona
+ya estuvo
+
+contame saludar(nombre)        # Hola, Ana
 ```
 
-> Proyecto académico del curso de compiladores. El objetivo es construir las
-> bases de un compilador: analizador léxico, sintáctico y semántico, árbol de
-> sintaxis abstracta (AST) y tabla de símbolos.
+> Proyecto académico del curso de Compiladores: análisis léxico, sintáctico y
+> semántico, AST, tabla de símbolos e intérprete.
 
-## Contenido
+## Instalación
 
-1. [Instalación en Mac](#1-instalación-en-mac)
-2. [Instalación en Windows](#2-instalación-en-windows)
-3. [Cómo ejecutar un programa](#3-cómo-ejecutar-un-programa)
-4. [Logo, doble clic y VS Code](#4-logo-doble-clic-y-vs-code)
-5. [Aprenda RP paso a paso](#5-aprenda-rp-paso-a-paso)
-6. [Referencia del lenguaje](#6-referencia-del-lenguaje)
-7. [Cómo funciona el compilador](#7-cómo-funciona-el-compilador)
-8. [Estructura del proyecto](#8-estructura-del-proyecto)
-9. [Problemas comunes](#9-problemas-comunes)
-10. [Glosario](#10-glosario)
+Requiere un compilador de C.
 
----
-
-## 1. Instalación en Mac
-
-**Paso 1: abrir la Terminal.** Presione `Cmd + Espacio`, escriba `Terminal` y
-presione Enter.
-
-**Paso 2: instalar el compilador de C** (solo la primera vez). Escriba:
-
-```bash
-xcode-select --install
-```
-
-Aparecerá una ventana; presione **Instalar** y espere unos minutos. Si dice que
-ya está instalado, puede seguir.
-
-**Paso 3: entrar a la carpeta del proyecto.** Escriba `cd ` (con un espacio al
-final), arrastre la carpeta `lenguaje-rp-c` desde el Finder a la Terminal y
-presione Enter. Queda algo así:
-
-```bash
-cd /Users/su-usuario/Downloads/lenguaje-rp-c
-```
-
-**Paso 4: compilar.** Escriba:
-
-```bash
-make
-```
-
-Esto crea el programa `rp` dentro de la carpeta. Solo hay que repetirlo si se
-modifica el código en `src/`.
-
-**Paso 5: probar que funciona.**
-
-```bash
-./rp ejemplos/completo.rp
-```
-
-Debe mostrar estas dos líneas:
-
-```
-cabal
-chisme
-```
-
-## 2. Instalación en Windows
-
-**Paso 1: abrir PowerShell.** Presione la tecla Windows, escriba `PowerShell` y
-presione Enter.
-
-**Paso 2: instalar el compilador de C** (solo la primera vez). Escriba:
-
-```powershell
-winget install BrechtSanders.WinLibs.POSIX.UCRT
-```
-
-Esto instala `gcc` (de MinGW). Cuando termine, **cierre PowerShell y vuelva a
-abrirlo** para que lo reconozca. Para comprobarlo, escriba `gcc --version`: debe
-mostrar un número de versión.
-
-> Si `winget` no existe en su computadora, descargue el instalador de
-> [WinLibs](https://winlibs.com/) o de [MSYS2](https://www.msys2.org/) y agregue
-> la carpeta `bin` de gcc a la variable de entorno `PATH`.
-
-**Paso 3: entrar a la carpeta del proyecto.** Escriba `cd ` (con un espacio),
-arrastre la carpeta `lenguaje-rp-c` desde el Explorador de archivos a PowerShell
-y presione Enter:
-
-```powershell
-cd C:\Users\su-usuario\Downloads\lenguaje-rp-c
-```
-
-**Paso 4: compilar.** Escriba:
-
-```powershell
-.\compilar.bat
-```
-
-Debe mostrar `Listo: se creo rp.exe`.
-
-**Paso 5: probar que funciona.**
-
-```powershell
-.\rp.exe ejemplos\completo.rp
-```
-
-Debe mostrar `cabal` y `chisme`.
-
----
-
-## 3. Cómo ejecutar un programa
-
-En Mac el programa se llama `./rp`; en Windows, `.\rp.exe`. Las rutas en Windows
-usan `\` en lugar de `/`.
-
-| Mac | Windows | Qué hace |
+| Sistema | Instalar compilador de C | Compilar RP |
 |---|---|---|
-| `./rp archivo.rp` | `.\rp.exe archivo.rp` | Ejecuta el programa y muestra solo su resultado |
-| `./rp archivo.rp -f` | `.\rp.exe archivo.rp -f` | Muestra además cada fase del compilador: tokens, AST, tabla AST y tabla de símbolos |
-| `./rp -i` | `.\rp.exe -i` | Modo interactivo: escriba instrucciones una por una |
-| `./rp -h` | `.\rp.exe -h` | Muestra la ayuda |
-| `make prueba` | `.\compilar.bat prueba` | Corre las 94 pruebas automáticas |
+| macOS | `xcode-select --install` | `make` |
+| Windows | `winget install BrechtSanders.WinLibs.POSIX.UCRT` | `.\compilar.bat` |
 
-### Crear su propio archivo `.rp`
-
-Un programa de RP es un archivo de texto normal con extensión `.rp`.
-
-- **Recomendado (Mac y Windows):** [Visual Studio Code](https://code.visualstudio.com/).
-  Cree un archivo nuevo y guárdelo como `hola.rp` en la carpeta del proyecto.
-- **Mac con TextEdit:** antes de escribir, elija *Formato → Convertir a texto
-  normal*. Al guardar, escriba el nombre `hola.rp` y desmarque "Si no se indica
-  ninguna extensión, usar .txt".
-- **Windows con el Bloc de notas:** al guardar, en *Tipo* elija **Todos los
-  archivos (\*.\*)** y en *Codificación* elija **UTF-8**. Si no, el archivo queda
-  como `hola.rp.txt` y la `ñ` y las tildes no funcionarán.
-
-### Modo interactivo
-
-Sirve para probar el lenguaje sin crear archivos. Escriba una instrucción, presione
-Enter y verá el resultado de inmediato:
-
-```
-rp> fijate que edad es 19
-rp> que onda edad
-cabal
-rp> ponele "diecinueve" a edad
-rp> que onda edad
-chisme
-rp> :salir
-```
-
-Una chamba ocupa varias líneas: al escribir `chamba ...` el modo interactivo
-sigue pidiendo líneas (con `...>`) hasta que escriba `ya estuvo`.
-
-Comandos especiales del modo interactivo:
-
-| Comando | Qué muestra |
-|---|---|
-| `:tabla` | La tabla de símbolos: todas las variables creadas, su tipo y dónde se usaron |
-| `:memoria` | El valor actual de cada variable |
-| `:ast` | El árbol de sintaxis de la última instrucción |
-| `:salir` | Termina el modo interactivo |
-
-### Qué muestra el compilador
-
-Normalmente solo se ve el resultado del programa (o los errores, si los hay).
-Con `-f` (de *fases*) se ve también cómo trabaja el compilador por dentro, en orden:
-
-1. **Código fuente** con números de línea.
-2. **Tabla de tokens** (fase léxica): cada pieza del código con su tipo, línea y columna.
-3. **AST** (fase sintáctica): el programa dibujado como árbol y como tabla.
-4. **Tabla de símbolos** (fase semántica): cada variable, parámetro y chamba con su ámbito, tipo e historial.
-5. **Ejecución**: lo que imprime el programa y el valor final de cada variable.
-
-Si hay errores, se muestran todos al final y el programa no se ejecuta. Algunos
-errores solo se pueden ver al ejecutar (por ejemplo, dividir entre cero); esos
-detienen el programa en la línea donde ocurren.
-
----
-
-## 4. Logo, doble clic y VS Code
-
-RP tiene su propio logo. Estos pasos son **opcionales**: hacen que los archivos
-`.rp` se vean con el logo y que se puedan ejecutar con doble clic. Se instalan
-una sola vez y no hacen falta para usar el lenguaje desde la terminal.
-
-<p align="center"><img src="logo/logo.png" alt="Logo de RP" width="96"></p>
-
-### En Mac
-
-Desde la carpeta del proyecto, en la Terminal:
+Para comprobar la instalación:
 
 ```bash
-./instalar/mac/instalar.sh
+./rp ejemplos/chambas.rp       # Windows: .\rp.exe ejemplos\chambas.rp
 ```
 
-El script compila el lenguaje y crea la app **RP** en la carpeta *Aplicaciones*
-de su usuario. Desde ese momento:
+## Uso
 
-- Los archivos `.rp` se ven con el logo de RP en el Finder.
-- **Doble clic** en un `.rp` abre la Terminal y lo ejecuta. La primera vez, macOS
-  pregunta si "RP" puede controlar "Terminal": presione **OK**.
-- Para **editar** un `.rp`: clic derecho → *Abrir con* → VS Code o TextEdit.
-
-Para quitarlo: `./instalar/mac/desinstalar.sh`
-
-### En Windows
-
-Primero compile con `.\compilar.bat` y luego, en PowerShell desde la carpeta del
-proyecto:
-
-```powershell
-.\instalar\windows\instalar.bat
-```
-
-No necesita permisos de administrador. Desde ese momento:
-
-- Los archivos `.rp` se ven con el logo de RP en el Explorador de archivos.
-- **Doble clic** en un `.rp` lo ejecuta en una ventana de consola.
-- Para **editar** un `.rp`: clic derecho → *Editar* (abre el Bloc de notas), o
-  *Abrir con* → VS Code.
-
-Si el icono no cambia de inmediato, cierre sesión y vuelva a entrar. Para
-quitarlo: `.\instalar\windows\desinstalar.bat`
-
-> El instalador usa la ubicación actual de la carpeta del proyecto. Si la mueve
-> de lugar, vuelva a ejecutarlo.
-
-### En Visual Studio Code (Mac y Windows)
-
-La extensión de RP para VS Code agrega:
-
-- El logo de RP junto a los archivos `.rp` en el explorador de VS Code.
-- **Colores** para el código: instrucciones, textos, números, `simon`/`nel` y comentarios.
-- Un botón **▶** arriba a la derecha (o la tecla **F5**) que guarda y ejecuta el
-  programa en la terminal de VS Code.
-- `Cmd + /` (Mac) o `Ctrl + /` (Windows) para comentar líneas con `#`.
-
-Para instalarla, en VS Code: abra la vista de **Extensiones** (`Cmd + Shift + X`
-o `Ctrl + Shift + X`), presione el menú **⋯** de arriba → **Install from VSIX…**
-(Instalar desde VSIX) y elija el archivo `instalar/vscode/rp-lenguaje.vsix`.
-
-El botón ▶ busca el compilador (`rp` o `rp.exe`) en la carpeta del archivo y en
-las carpetas de arriba, así que funciona con cualquier `.rp` dentro del
-proyecto. Para archivos en otro lugar, indique la ruta del compilador en la
-configuración de VS Code: busque `rp.rutaCompilador`.
-
-### Cambiar el logo
-
-El logo original está en `logo/logo.svg`. Para cambiarlo, reemplace
-`logo/logo.png` por una imagen cuadrada de 1024×1024 píxeles y, en Mac, ejecute
-`./logo/generar_iconos.sh`: crea `rp.icns` (Mac) y `rp.ico` (Windows). Después
-vuelva a ejecutar el instalador de su sistema.
-
----
-
-## 5. Aprenda RP paso a paso
-
-Puede escribir estos ejemplos en un archivo `.rp` o en el modo interactivo.
-
-### 5.1 Crear una variable
-
-Las variables se crean con `fijate que`, como cuando uno dice "fijate que…" para
-contar algo nuevo. La palabra `es` le da su primer valor:
-
-```
-fijate que nombre es "Ana"
-fijate que edad es 19
-```
-
-También se puede crear vacía. En ese caso vale `ni maiz` (nada):
-
-```
-fijate que apodo
-```
-
-### 5.2 Cambiar el valor
-
-Para cambiar el valor de una variable que ya existe se usa `ponele <valor> a <nombre>`,
-como diría un chapín: "ponele 20 a la edad".
-
-```
-ponele 20 a edad
-ponele "La Seño" a apodo
-```
-
-El valor también puede ser otra variable; se copia su valor:
-
-```
-fijate que copia
-ponele edad a copia
-```
-
-### 5.3 Preguntar el tipo
-
-`que onda <nombre>` muestra qué tipo de dato guarda una variable:
-
-```
-fijate que precio es 12.50
-que onda precio
-```
-
-Salida:
-
-```
-con vuelto
-```
-
-### 5.4 Una variable puede cambiar de tipo
-
-RP adivina el tipo por la forma del valor, y si se le pone un valor de otro tipo,
-la variable cambia de tipo (igual que en Python):
-
-```
-fijate que dato es 7
-que onda dato          # cabal
-ponele 7.5 a dato
-que onda dato          # con vuelto
-ponele "siete" a dato
-que onda dato          # chisme
-```
-
-### 5.5 Comentarios
-
-Todo lo que va después de `#` se ignora. Sirve para dejar notas:
-
-```
-# Este programa guarda la nota del curso
-fijate que nota es 85    # sobre 100
-```
-
-### 5.6 Un programa completo
-
-```
-# Declaraciones
-fijate que nombre es "Ana"
-fijate que edad es 19
-fijate que nota es 8.5
-fijate que aprobado es simon
-fijate que apodo              # queda en ni maiz
-
-# Asignaciones
-ponele 20 a edad
-ponele "La Seño" a apodo
-ponele nel a aprobado
-
-# Identificación de tipos
-que onda edad                 # muestra: cabal
-que onda apodo                # muestra: chisme
-```
-
-Este programa está en `ejemplos/completo.rp`. Hay más ejemplos en la carpeta
-`ejemplos/`:
-
-| Archivo | Qué muestra |
+| Comando | Descripción |
 |---|---|
-| `completo.rp` | El programa de arriba |
-| `tipos.rp` | Los cinco tipos de dato y los cambios de tipo |
-| `errores_lexicos.rp` | Errores de escritura: nombres o números mal formados, símbolos no permitidos |
-| `errores_sintacticos.rp` | Instrucciones mal armadas: palabras faltantes o fuera de orden |
-| `errores_semanticos.rp` | Instrucciones bien escritas pero sin sentido: usar una variable que no existe |
-| `chambas.rp` | Operaciones, `contame` y chambas (funciones) |
+| `./rp archivo.rp` | Ejecuta el programa |
+| `./rp archivo.rp -f` | Muestra además cada fase: tokens, AST y tabla de símbolos |
+| `./rp -i` | Modo interactivo (`:tabla`, `:memoria`, `:ast`, `:salir`) |
+| `make prueba` | Ejecuta las pruebas automáticas |
 
-### 5.7 Mostrar un valor
+## El lenguaje
 
-`que onda` muestra el **tipo**; para mostrar el **valor** se usa `contame`
-("contame el chisme"):
-
-```
-fijate que nombre es "Ana"
-contame nombre           # Ana
-contame 19               # 19
-```
-
-### 5.8 Operaciones
-
-Se puede sumar `+`, restar `-`, multiplicar `*` y dividir `/`. Primero se hacen
-`*` y `/`, y luego `+` y `-`; los paréntesis cambian ese orden:
-
-```
-contame 2 + 3 * 4        # 14
-contame (2 + 3) * 4      # 20
-fijate que total es edad * 2 - 1
-ponele total + 1 a total
-```
-
-- Entre dos `cabal` el resultado es `cabal`, y la división es entera: `7 / 2` da `3`.
-  Si alguno es `con vuelto`, el resultado es `con vuelto`: `7 / 2.0` da `3.5`.
-- `+` con un `chisme` une los textos: `"Edad: " + 19` da `Edad: 19`.
-- Para restar deje espacios: `edad - 1`. Pegado a un nombre (`mi-pisto`) el `-`
-  se toma como un nombre mal escrito.
-- Dividir entre cero detiene el programa con un error de ejecución.
-
-### 5.9 Chambas (funciones)
-
-Una **chamba** es un trabajito con nombre que el programa hace cada vez que se lo
-piden. Se declara con `chamba nombre(parámetros)`, el cuerpo va en las líneas
-siguientes y se cierra con `ya estuvo`. Con `devolveme` la chamba entrega su
-resultado:
-
-```
-chamba sumar(x, y)
-    devolveme x + y
-ya estuvo
-
-contame sumar(30, 20)              # 50
-fijate que r es sumar(30, 20) * 2  # se puede usar dentro de una operación
-```
-
-Una chamba que no necesita devolver nada usa `devolveme` solo (o lo omite) y
-entrega `ni maiz`. Se puede llamar como instrucción sola:
-
-```
-chamba avisar(mensaje)
-    contame mensaje
-    devolveme
-ya estuvo
-
-avisar("ya terminé")
-```
-
-Reglas de las chambas:
-
-- Se declaran antes de llamarlas, y no puede haber una chamba dentro de otra.
-- Se llaman con la misma cantidad de valores que parámetros tienen.
-- Los parámetros y las variables creadas adentro son **locales**: no se ven
-  afuera de la chamba y se borran al terminar.
-- Una chamba puede leer las variables globales, pero no cambiarlas con `ponele`;
-  para cambiar algo, devuelva el valor con `devolveme` y asígnelo afuera.
-- Al llegar a `devolveme` la chamba termina; las líneas que siguen no se ejecutan.
-
----
-
-## 6. Referencia del lenguaje
+Cada instrucción ocupa una línea. Los comentarios empiezan con `#`.
 
 ### Instrucciones
 
-Cada instrucción va en su propia línea.
-
-| Instrucción | Para qué sirve | Ejemplo | Equivalente en Python |
-|---|---|---|---|
-| `fijate que <nombre>` | Crear una variable vacía (vale `ni maiz`) | `fijate que apodo` | `apodo = None` |
-| `fijate que <nombre> es <valor>` | Crear una variable con un valor | `fijate que edad es 19` | `edad = 19` |
-| `ponele <valor> a <nombre>` | Cambiar el valor de una variable que ya existe | `ponele 20 a edad` | `edad = 20` |
-| `que onda <nombre>` | Mostrar el tipo actual de una variable | `que onda edad` | `print(type(edad))` |
-| `contame <valor>` | Mostrar un valor | `contame edad + 1` | `print(edad + 1)` |
-| `chamba <nombre>(<parámetros>)` … `ya estuvo` | Declarar una chamba (función) | `chamba sumar(x, y)` | `def sumar(x, y):` |
-| `devolveme [<valor>]` | Terminar la chamba y devolver un valor (sin valor devuelve `ni maiz`) | `devolveme x + y` | `return x + y` |
-| `<nombre>(<valores>)` | Llamar una chamba | `avisar("hola")` | `avisar("hola")` |
-
-Donde dice `<valor>` se puede escribir una operación: números, textos, variables,
-llamadas a chambas, `+ - * /` y paréntesis (sección 5.8).
-
-### Tipos de dato
-
-El programador nunca escribe el tipo: RP lo deduce por la forma del valor.
-
-| Tipo en RP | Qué guarda | Ejemplos | En Python | En C | Por qué se llama así |
-|---|---|---|---|---|---|
-| `cabal` | Números enteros | `42`, `-7` | `int` | `int` | "Cabal" significa exacto |
-| `con vuelto` | Números con decimales | `3.75`, `-0.5` | `float` | `double` | Como un pago que deja vuelto |
-| `chisme` | Texto entre comillas | `"Ana"`, `'hola'` | `str` | `char*` | El chisme es pura plática |
-| `simonel` | Verdadero o falso | `simon`, `nel` | `bool` | `bool` | De "simón" (sí) y "nel" (no) |
-| `ni maiz` | Ausencia de valor | `ni maiz` | `None` | `NULL` | "Ni maíz" es no haber nada |
-
-Para reconocer el tipo, RP revisa en este orden: si tiene comillas → `chisme`;
-si es `simon`, `nel` o `ni maiz`; si tiene punto → `con vuelto`; si son solo
-dígitos → `cabal`. Detalles:
-
-- Un decimal necesita dígitos a ambos lados del punto: `0.5` sí; `.5` y `5.` no.
-- `"simon"` entre comillas es un `chisme`, no un `simonel`.
-
-### Reglas para los nombres de variables
-
-- Empiezan con una letra o con `_`; después pueden llevar letras, dígitos y `_`.
-- Se permiten la `ñ` y las tildes: `año`, `canción`.
-- No pueden tener espacios ni símbolos como `-`, `@` o `$`.
-- No pueden ser una **palabra reservada**: `fijate`, `que`, `es`, `ponele`, `a`,
-  `simon`, `nel`, `ni`, `maiz`, `onda`, `chamba`, `ya`, `estuvo`, `devolveme`,
-  `contame`. Las mismas reglas valen para los nombres de chambas y parámetros.
-- Una variable se crea una sola vez con `fijate que`; después se cambia con `ponele`.
-- Las mayúsculas importan: `Edad` y `edad` son variables distintas, y `Fijate`
-  no es una palabra reservada.
-
-| Código | ¿Válido? | Motivo |
+| Instrucción | Descripción | Equivalente en Python |
 |---|---|---|
-| `fijate que año es 2026` | Sí | La `ñ` está permitida |
-| `fijate que _total` | Sí | Puede empezar con `_` |
-| `fijate que 2do es 5` | No | El nombre empieza con un número |
-| `fijate que mi pisto es 100` | No | El nombre tiene un espacio |
-| `fijate que onda es 3` | No | `onda` es palabra reservada |
-| `edad es 20` | No | Falta `fijate que` para crear la variable |
-| `fijate edad es 20` | No | La frase completa es `fijate que` |
-| `ponele a edad 20` | No | El valor va antes de la `a` |
-| `ponele 20 edad` | No | Falta la palabra `a` |
-| `ponele 500 a sueldo` | No | `sueldo` no fue creada antes |
-| `edad = 20` | No | RP no usa `=` |
-| `fijate que mi-pisto es 1` | No | El `-` no va en nombres (para restar: `mi - pisto`) |
-| `chamba sumar(x, x)` | No | Parámetro repetido |
-| `sumar(1)` | No | `sumar` recibe 2 valores |
-| `devolveme 5` (afuera de una chamba) | No | `devolveme` solo va dentro de una chamba |
-| `contame "hola" - 1` | No | `-` solo funciona con números |
+| `fijate que x es 19` | Declara una variable (sin `es`, vale `ni maiz`) | `x = 19` |
+| `ponele 20 a x` | Asigna un nuevo valor | `x = 20` |
+| `que onda x` | Muestra el tipo | `print(type(x))` |
+| `contame x + 1` | Muestra un valor | `print(x + 1)` |
+| `chamba f(m, n)` … `ya estuvo` | Declara una función | `def f(m, n):` |
+| `devolveme valor` | Devuelve un valor desde una chamba | `return valor` |
+| `f(1, 2)` | Llama una chamba | `f(1, 2)` |
 
-### Mensajes de error
+### Tipos
 
-Cuando un programa tiene errores, el compilador los muestra **todos a la vez**,
-con la fase, la línea, la columna y una sugerencia para corregirlos. El programa
-solo se ejecuta si no tiene ningún error.
+El tipo se deduce del valor y puede cambiar al asignar otro valor (tipado dinámico).
+
+| Tipo | Valores | Python |
+|---|---|---|
+| `cabal` | `42`, `-7` | `int` |
+| `con vuelto` | `3.75`, `-0.5` | `float` |
+| `chisme` | `"Ana"`, `'hola'` | `str` |
+| `simonel` | `simon`, `nel` | `bool` |
+| `ni maiz` | `ni maiz` | `None` |
+
+### Operaciones
+
+`+ - * /` con paréntesis y la precedencia habitual.
+
+- Entre dos `cabal` el resultado es `cabal` y la división es entera (`7 / 2` = `3`).
+- Con un `con vuelto` el resultado es `con vuelto` (`7 / 2.0` = `3.5`).
+- `+` con un `chisme` concatena (`"Edad: " + 19` = `Edad: 19`).
+- La resta entre nombres requiere espacios: `x - y`.
+
+### Chambas (funciones)
+
+```
+chamba promedio(n1, n2)
+    fijate que total es n1 + n2
+    devolveme total / 2
+ya estuvo
+
+contame promedio(8, 10)        # 9
+```
+
+- Deben declararse antes de usarse y no pueden anidarse.
+- Se llaman con tantos argumentos como parámetros tienen.
+- Los parámetros y las variables internas son locales a la chamba.
+- Pueden leer variables globales, pero no modificarlas.
+- Sin `devolveme`, o con `devolveme` sin valor, devuelven `ni maiz`.
+
+### Nombres
+
+Empiezan con letra o `_` y pueden contener letras (incluidas `ñ` y tildes),
+dígitos y `_`. Distinguen mayúsculas. No pueden ser palabras reservadas:
+`fijate` `que` `es` `ponele` `a` `onda` `simon` `nel` `ni` `maiz` `contame`
+`chamba` `devolveme` `ya` `estuvo`.
+
+### Errores
+
+El compilador reporta todos los errores con su fase, línea y una sugerencia.
+El programa solo se ejecuta si no hay errores.
 
 ```
 ✘ Error léxico (línea 1, columna 12): '2do' no es un nombre válido: los nombres no pueden empezar con un dígito
 ✘ Error sintáctico (línea 6, columna 11): falta la palabra 'a': escriba 'ponele 20 a edad'
-✘ Error semántico (línea 3): no se puede asignar a 'sueldo' porque no ha sido declarada; declárela primero con 'fijate que sueldo'
+✘ Error semántico (línea 7): la chamba 'sumar' recibe 2 valor(es), pero se le pasaron 3
 ✘ Error de ejecución (línea 4): división entre cero
 ```
 
----
-
-## 7. Cómo funciona el compilador
-
-Un compilador trabaja por **fases**: cada una recibe el resultado de la anterior.
-Si una fase encuentra errores, las siguientes no se ejecutan.
+## Arquitectura
 
 ```
-programa.rp ─► LÉXICO ─► tokens ─► SINTÁCTICO ─► AST ─► SEMÁNTICO ─► tabla de símbolos ─► INTÉRPRETE ─► salida
+programa.rp → Léxico → tokens → Sintáctico → AST → Semántico → tabla de símbolos → Intérprete → salida
 ```
 
-| Fase | Qué hace, en palabras simples | Ejemplo de error que detecta | Archivo |
-|---|---|---|---|
-| **1. Análisis léxico** | Lee el texto letra por letra y lo separa en piezas llamadas *tokens* (palabras, números, textos) | `2do` (un nombre no empieza con número) | `src/lexico.c` |
-| **2. Análisis sintáctico** | Revisa que los tokens formen instrucciones válidas según la gramática y construye el *AST* | `ponele 20 edad` (falta la `a`) | `src/sintactico.c` |
-| **3. Análisis semántico** | Revisa que las instrucciones tengan sentido: que las variables existan y qué tipo tiene cada una. Llena la *tabla de símbolos* | `ponele 500 a sueldo` (`sueldo` no existe) | `src/semantico.c` |
-| **4. Ejecución** | Recorre el AST y ejecuta cada instrucción | `10 / 0` (división entre cero) | `src/interprete.c` |
+| Fase | Responsabilidad | Archivo |
+|---|---|---|
+| Léxico | Divide el texto en tokens. Las palabras y los símbolos están en las tablas `PALABRAS` y `SIMBOLOS` | `src/lexico.c` |
+| Sintáctico | Valida la gramática y construye el AST (descenso recursivo) | `src/sintactico.c` |
+| Semántico | Verifica declaraciones, ámbitos, tipos y llamadas; llena la tabla de símbolos | `src/semantico.c` |
+| Intérprete | Ejecuta el AST con una pila de marcos para las chambas | `src/interprete.c` |
 
-### Gramática
-
-La gramática define qué combinaciones de tokens son instrucciones válidas. Está
-escrita en notación EBNF: `|` significa "o", `[ ]` significa "opcional" y
-`{ }` significa "cero o más veces".
+### Gramática (EBNF)
 
 ```
 programa    → { linea } FIN
@@ -570,122 +148,57 @@ factor      → CABAL | CON_VUELTO | CHISME | 'simon' | 'nel' | 'ni' 'maiz'
             | IDENT | llamada | '(' expresion ')'
 ```
 
-La precedencia de las operaciones sale de la gramática: `expresion` se arma con
-`termino`s, así que `*` y `/` se agrupan antes que `+` y `-`.
-
-Cada token se reconoce con una expresión regular:
-
-```
-IDENT       [letra _][letra dígito _]*      nombre de variable (que no sea palabra reservada)
-CABAL       -?[0-9]+                        número entero
-CON_VUELTO  -?[0-9]+\.[0-9]+                número decimal
-CHISME      "[^"\n]*"  |  '[^'\n]*'         texto entre comillas
-símbolos    ( ) , + - * /
-```
-
-Un `-` pegado a un dígito es el signo de un número (`-7`) solo si lo anterior no
-es un valor; después de un valor es una resta: `x -7` es `x - 7`.
-
 ### Decisiones de diseño
 
-- **Parser de descenso recursivo:** cada regla de la gramática es una función
-  de C (`declaracion()`, `asignacion()`, `expresion()`, `chamba()`...). Está escrito a mano, sin
-  herramientas generadoras como Lex/Yacc o ANTLR.
-- **Recuperación de errores en "modo pánico":** al encontrar un error, el
-  compilador lo anota, se salta el resto de esa línea y sigue con la siguiente.
-  Por eso puede mostrar todos los errores de una sola vez.
-- **Tabla de símbolos con tabla hash:** cada nombre se convierte en un número
-  (función hash *djb2*) que indica dónde guardarlo, para encontrar las variables
-  rápido. Guarda nombre, clase (variable, parámetro o chamba), tipo actual,
-  ámbito, línea de declaración, líneas donde se asigna y se usa, e historial de tipos.
-- **Ámbitos:** hay un ámbito global y uno por cada chamba (`chamba sumar`). Dentro
-  de una chamba se busca primero en su ámbito y luego en el global; al salir, sus
-  símbolos ya no se encuentran desde afuera.
-- **Tipos que se saben al ejecutar:** el tipo de un parámetro o de lo que devuelve
-  una chamba depende de cada llamada, así que en la tabla aparece como `dinámico`.
-  Si una operación usa uno de esos valores, el intérprete revisa los tipos al
-  ejecutarla.
-- **Marcos de llamada:** la memoria del intérprete es una pila. Cada llamada a una
-  chamba apila sus parámetros y variables locales (un *marco*) y los quita al
-  terminar. Si una chamba se llama a sí misma más de 1000 veces una dentro de
-  otra, el programa se detiene con un error en lugar de quedarse colgado.
-- **Tipado dinámico en C:** C exige que cada variable tenga un tipo fijo, pero en
-  RP una variable puede pasar de `cabal` a `chisme`. Por eso cada valor de RP se
-  guarda junto con una etiqueta que indica su tipo (una *unión etiquetada*,
-  `ValorRP` en `src/valor.h`). `que onda` solo lee esa etiqueta.
-- **Soporte de UTF-8:** el analizador léxico reconoce la `ñ` y las vocales con
-  tilde en los nombres. En Windows, el programa activa UTF-8 en la consola para
-  que se vean bien las tildes y los bordes de las tablas.
+- **Sin generadores (Flex/Bison):** el léxico y el parser están escritos a mano
+  para que todo el código sea legible y no requiera herramientas adicionales.
+- **Recuperación en modo pánico:** ante un error se descarta el resto de la
+  línea y el análisis continúa, lo que permite reportar todos los errores.
+- **Tabla de símbolos hash** (djb2), con un ámbito global y uno por chamba.
+- **Tipado dinámico mediante unión etiquetada** (`ValorRP`): cada valor lleva su
+  tipo. Los tipos que solo se conocen al ejecutar (parámetros, resultados de
+  chambas) se verifican en el intérprete.
 
----
-
-## 8. Estructura del proyecto
+## Estructura del proyecto
 
 ```
-lenguaje-rp-c/
-├── Makefile              Compilar en Mac (make) y correr pruebas (make prueba)
-├── compilar.bat          Compilar en Windows (compilar.bat) y correr pruebas (compilar.bat prueba)
-├── README.md             Este archivo
-├── logo/                 Logo del lenguaje (logo.svg, logo.png, rp.icns para Mac, rp.ico para Windows)
-├── instalar/             Logo en los archivos .rp y doble clic para ejecutarlos (sección 4)
-│   ├── mac/              instalar.sh / desinstalar.sh (crea la app RP)
-│   ├── windows/          instalar.bat / desinstalar.bat (registra .rp en Windows)
-│   └── vscode/           Extensión de VS Code: logo, colores y botón ▶ (rp-lenguaje.vsix)
-├── ejemplos/             Programas de ejemplo escritos en RP (.rp)
-├── pruebas/
-│   └── pruebas.c         Pruebas automáticas de todas las reglas
-└── src/                  Código fuente del compilador
-    ├── main.c            Programa principal: lee el archivo, muestra resultados, modo interactivo
-    ├── compilador.c      Une las fases: léxico → sintáctico → semántico
-    ├── lexico.c          Fase 1: análisis léxico (texto → tokens)
-    ├── sintactico.c      Fase 2: análisis sintáctico (tokens → AST)
-    ├── ast.c             Estructura de los nodos del AST
-    ├── semantico.c       Fase 3: análisis semántico (revisa el AST)
-    ├── tabla_simbolos.c  Tabla de símbolos (tabla hash)
-    ├── interprete.c      Fase 4: ejecuta el programa (pila de marcos para las chambas)
-    ├── reportes.c        Dibuja las tablas y el árbol en la terminal
-    ├── token.c           Tipos de token y palabras reservadas
-    ├── valor.c           Tipos de dato de RP, sus valores y las operaciones + - * /
-    ├── errores.c         Lista de errores y sus mensajes
-    └── util.c            Funciones de apoyo (memoria, texto UTF-8)
+src/
+  main.c             Punto de entrada y modo interactivo
+  compilador.c       Encadena las fases de análisis
+  lexico.c, token.c  Fase léxica
+  sintactico.c       Fase sintáctica
+  ast.c              Nodos del AST
+  semantico.c        Fase semántica
+  tabla_simbolos.c   Tabla de símbolos
+  interprete.c       Ejecución
+  valor.c            Tipos y operaciones
+  errores.c          Registro de errores
+  reportes.c         Tablas y árbol en consola
+  util.c             Memoria y UTF-8
+pruebas/pruebas.c    Pruebas automáticas
+ejemplos/            Programas de ejemplo
+instalar/            Instaladores (macOS, Windows) y extensión de VS Code
 ```
 
-Cada archivo `.c` tiene un `.h` con el mismo nombre que declara sus funciones.
+## Extender el lenguaje
 
----
+Para agregar una palabra reservada o un símbolo:
 
-## 9. Problemas comunes
+1. Declarar el token en el `enum` de `src/token.h` (las palabras reservadas, antes de `TK_CONTAME`).
+2. Agregar su nombre en `NOMBRES` de `src/token.c`, en la misma posición.
+3. Agregar una entrada en `PALABRAS` o `SIMBOLOS` de `src/lexico.c`.
 
-| Problema | Solución |
+Una instrucción nueva requiere además su nodo en `ast.h`, su regla en
+`sintactico.c`, su verificación en `semantico.c`, su ejecución en
+`interprete.c` y sus pruebas. La implementación de `contame` sirve como
+referencia en cada archivo.
+
+## Integración con el sistema
+
+Opcional: muestra el logo en los archivos `.rp` y permite ejecutarlos con doble clic.
+
+| Plataforma | Instalación |
 |---|---|
-| Mac: `make: command not found` o `xcrun: error` | Falta el compilador. Ejecute `xcode-select --install` |
-| Mac: `zsh: command not found: rp` | Escriba `./rp`, con `./` al inicio |
-| Mac: `zsh: permission denied: ./rp` | Vuelva a compilar con `make` |
-| Windows: `No se encontro gcc` o `gcc no se reconoce` | Instale gcc (sección 2) y **cierre y vuelva a abrir** PowerShell |
-| Windows: `rp.exe no se reconoce` | Escriba `.\rp.exe`, con `.\` al inicio, y compile antes con `.\compilar.bat` |
-| `No se pudo abrir 'archivo.rp'` | Revise el nombre y que esté en la carpeta actual. En Windows, que no se haya guardado como `archivo.rp.txt` |
-| La `ñ` o las tildes dan error `símbolo no permitido` | Guarde el archivo con codificación **UTF-8** |
-| Mac: los archivos `.rp` siguen viéndose en blanco | Ejecute de nuevo `./instalar/mac/instalar.sh`; si persiste, cierre sesión y vuelva a entrar |
-| Mac: al hacer doble clic pregunta si "RP" puede controlar "Terminal" | Presione **OK**: eso permite abrir la Terminal para ejecutar el programa |
-| Windows: el icono de los `.rp` no cambia | Cierre sesión y vuelva a entrar. Si antes eligió otro programa con "Abrir con", elija de nuevo *Ejecutar con RP* |
-| Los bordes de las tablas se ven como símbolos raros (Windows) | Use PowerShell o Windows Terminal en lugar de la consola antigua (cmd) |
-
----
-
-## 10. Glosario
-
-| Término | Significado |
-|---|---|
-| **Compilador** | Programa que lee código escrito en un lenguaje, revisa que esté correcto y lo traduce o ejecuta |
-| **Token** | La pieza mínima con significado: una palabra reservada, un nombre, un número o un texto |
-| **Lexema** | El texto exacto de un token tal como aparece en el código (por ejemplo `19`) |
-| **Gramática** | Las reglas que dicen en qué orden pueden ir los tokens para formar instrucciones |
-| **AST** (árbol de sintaxis abstracta) | Representación del programa en forma de árbol: la raíz es el programa, las ramas son las instrucciones y las hojas son los valores |
-| **AST decorado** | El AST después de que el análisis semántico le anota el tipo de cada nodo |
-| **Tabla de símbolos** | Registro de todas las variables del programa con su tipo y dónde se usan |
-| **Ámbito** | La parte del programa donde existe una variable: el global o el de una chamba |
-| **Chamba** (función) | Grupo de instrucciones con nombre que se ejecuta cada vez que se llama |
-| **Parámetro** / **argumento** | El parámetro es el nombre en la declaración (`x` en `chamba doble(x)`); el argumento es el valor que se pasa al llamarla (`5` en `doble(5)`) |
-| **Marco de llamada** | El espacio en memoria con los parámetros y variables locales de una llamada a una chamba |
-| **Tipado dinámico** | El tipo de una variable lo determina el valor que guarda y puede cambiar |
-| **Intérprete** | Parte que ejecuta el programa directamente, instrucción por instrucción |
+| macOS | `./instalar/mac/instalar.sh` |
+| Windows | `.\instalar\windows\instalar.bat` |
+| VS Code | *Extensiones → ⋯ → Install from VSIX…* → `instalar/vscode/rp-lenguaje.vsix` (colores y ejecución con F5) |

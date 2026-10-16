@@ -1,3 +1,8 @@
+/* COMPILADOR
+ *
+ * Une las fases en orden: léxico → sintáctico → semántico.
+ * Si una fase encuentra errores, el semántico no se ejecuta.
+ */
 #include "compilador.h"
 
 #include <string.h>

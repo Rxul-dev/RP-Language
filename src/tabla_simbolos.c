@@ -1,3 +1,14 @@
+/* TABLA DE SÍMBOLOS
+ *
+ * ¿Qué hace?
+ *   Guarda todo lo que tiene nombre en el programa (variables, parámetros y
+ *   chambas) con su tipo, dónde se declaró y dónde se usó.
+ *
+ * ¿Cómo busca rápido?
+ *   Con una tabla hash: el nombre se convierte en un número (con la función
+ *   hash) y ese número dice en qué "cubeta" está guardado. Así no hay que
+ *   revisar todos los nombres uno por uno.
+ */
 #include "tabla_simbolos.h"
 
 #include <stdlib.h>

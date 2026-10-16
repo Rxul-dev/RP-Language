@@ -1,3 +1,8 @@
+/* REPORTES
+ *
+ * Dibuja en la terminal lo que se ve con './rp archivo.rp -f': la tabla de
+ * tokens, el árbol AST, la tabla de símbolos y la memoria.
+ */
 #include "reportes.h"
 
 #include <stdarg.h>

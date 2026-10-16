@@ -1,3 +1,17 @@
+/* ANALIZADOR SINTÁCTICO (fase 2)
+ *
+ * ¿Qué hace?
+ *   Revisa que los tokens estén en un orden válido, como revisar que una
+ *   oración tenga sentido gramatical. Por ejemplo 'ponele 20 a edad' está bien,
+ *   pero 'ponele 20 edad' no (falta la 'a').
+ *
+ *   Mientras revisa, arma el AST: un árbol que representa el programa.
+ *
+ * ¿Cómo está ordenado?
+ *   Cada regla de la gramática (está completa en sintactico.h) es una función
+ *   con el mismo nombre: declaracion(), asignacion(), chamba(), expresion()...
+ *   Una función llama a otras: chamba() llama a linea() para cada línea del cuerpo.
+ */
 #include "sintactico.h"
 
 #include <stdio.h>

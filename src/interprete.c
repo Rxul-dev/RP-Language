@@ -1,3 +1,19 @@
+/* INTÉRPRETE (fase 4)
+ *
+ * ¿Qué hace?
+ *   Ejecuta el programa: recorre el AST instrucción por instrucción y hace lo
+ *   que cada una dice (crear variables, mostrar valores, llamar chambas...).
+ *
+ * ¿Cómo guarda las variables?
+ *   En una lista llamada "memoria". Cada variable es una celda con su nombre y
+ *   su valor. Cuando se llama una chamba, sus parámetros y variables se agregan
+ *   al final de la lista y se borran cuando la chamba termina.
+ *
+ * ¿Cómo está ordenado?
+ *   evaluar() calcula el valor de una expresión (5 + x, sumar(1, 2)...).
+ *   llamar() ejecuta una chamba.
+ *   interprete_ejecutar_sentencia() ejecuta una instrucción.
+ */
 #include "interprete.h"
 
 #include <stdarg.h>

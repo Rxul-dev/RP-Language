@@ -1,20 +1,20 @@
+/* TOKENS
+ *
+ * Nombres y categorías de los tokens, para mostrarlos en la tabla de tokens
+ * (./rp archivo.rp -f). Las palabras reservadas y los símbolos que reconoce RP
+ * están en las tablas al inicio de lexico.c.
+ */
 #include "token.h"
 
 #include <stdlib.h>
-#include <string.h>
 
+/* El nombre de cada token, en el mismo orden que el enum TipoToken de token.h */
 static const char *NOMBRES[] = {
     "FIJATE", "QUE", "ES", "PONELE", "A", "SIMON", "NEL", "NI", "MAIZ", "ONDA",
     "CHAMBA", "YA", "ESTUVO", "DEVOLVEME", "CONTAME",
     "IDENT", "CABAL", "CON_VUELTO", "CHISME",
     "PAR_ABRE", "PAR_CIERRA", "COMA", "MAS", "MENOS", "POR", "ENTRE",
     "SALTO", "ERROR", "FIN",
-};
-
-/* Las palabras reservadas, en el mismo orden que TK_FIJATE..TK_CONTAME */
-static const char *RESERVADAS[] = {
-    "fijate", "que", "es", "ponele", "a", "simon", "nel", "ni", "maiz", "onda",
-    "chamba", "ya", "estuvo", "devolveme", "contame",
 };
 
 const char *token_nombre(TipoToken tipo) {
@@ -41,15 +41,9 @@ const char *token_categoria(TipoToken tipo) {
     }
 }
 
+/* En el enum las palabras reservadas van primero: de TK_FIJATE a TK_CONTAME */
 int token_es_reservada(TipoToken tipo) {
     return tipo <= TK_CONTAME;
-}
-
-TipoToken buscar_palabra_reservada(const char *lexema) {
-    for (int i = 0; i <= TK_CONTAME; i++) {
-        if (strcmp(lexema, RESERVADAS[i]) == 0) return (TipoToken)i;
-    }
-    return TK_IDENT;
 }
 
 void tokens_liberar(ListaTokens *l) {

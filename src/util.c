@@ -1,3 +1,9 @@
+/* UTILIDADES
+ *
+ * Funciones de apoyo que usan todos los demás archivos: pedir memoria sin que
+ * el programa se caiga si falla, copiar textos, listas de números y contar las
+ * letras de un texto con tildes (UTF-8).
+ */
 #include "util.h"
 
 #include <stdio.h>

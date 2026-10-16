@@ -1,3 +1,12 @@
+/* VALORES DE RP
+ *
+ * ¿Qué hace?
+ *   Define cómo se guarda un valor de RP (un cabal, un chisme, simon...) y las
+ *   operaciones + - * / entre valores.
+ *
+ *   Cada valor lleva su tipo pegado (una "unión etiquetada"): así una variable
+ *   puede guardar un cabal y luego un chisme, igual que en Python.
+ */
 #include "valor.h"
 
 #include <stdio.h>

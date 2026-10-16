@@ -1,3 +1,8 @@
+/* ERRORES
+ *
+ * Guarda los errores que encuentra cada fase (con su línea y columna) y los
+ * ordena para mostrarlos de arriba abajo.
+ */
 #include "errores.h"
 
 #include <stdio.h>

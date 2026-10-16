@@ -1,3 +1,23 @@
+/* ANALIZADOR LÉXICO (fase 1)
+ *
+ * ¿Qué hace?
+ *   Lee el programa letra por letra y lo parte en piezas llamadas "tokens",
+ *   igual que al leer una oración uno separa las palabras. Por ejemplo:
+ *
+ *       fijate que edad es 19
+ *       →  FIJATE  QUE  IDENT(edad)  ES  CABAL(19)  SALTO
+ *
+ *   Si encuentra algo que no es parte de RP (como '@' o '2do'), lo anota
+ *   como error y sigue leyendo.
+ *
+ * ¿Cómo está ordenado este archivo?
+ *   1. Las TABLAS de lo que RP reconoce: palabras reservadas y símbolos.
+ *      Para agregar una palabra o un símbolo nuevo basta con agregar una línea
+ *      aquí (y su token en token.h).
+ *   2. Funciones pequeñas para reconocer letras y dígitos.
+ *   3. Una función por cada clase de token: nombres, números, chismes, símbolos.
+ *   4. lexico_analizar(): el ciclo principal que lo une todo.
+ */
 #include "lexico.h"
 
 #include <errno.h>
@@ -6,73 +26,74 @@
 
 #include "util.h"
 
+/* ============================================================ 1. TABLAS */
+
 typedef struct {
-    const char *fuente;
-    size_t pos;
+    const char *texto;  /* cómo se escribe en RP  */
+    TipoToken token;    /* el token que produce   */
+} Regla;
+
+/* Palabras reservadas: no se pueden usar como nombres de variables */
+static const Regla PALABRAS[] = {
+    {"fijate",    TK_FIJATE},     /* fijate que edad es 19        */
+    {"que",       TK_QUE},
+    {"es",        TK_ES},
+    {"ponele",    TK_PONELE},     /* ponele 20 a edad             */
+    {"a",         TK_A},
+    {"onda",      TK_ONDA},       /* que onda edad                */
+    {"simon",     TK_SIMON},      /* verdadero                    */
+    {"nel",       TK_NEL},        /* falso                        */
+    {"ni",        TK_NI},         /* ni maiz = sin valor          */
+    {"maiz",      TK_MAIZ},
+    {"contame",   TK_CONTAME},    /* contame edad                 */
+    {"chamba",    TK_CHAMBA},     /* chamba sumar(x, y)           */
+    {"devolveme", TK_DEVOLVEME},  /* devolveme x + y              */
+    {"ya",        TK_YA},         /* ya estuvo = fin de la chamba */
+    {"estuvo",    TK_ESTUVO},
+};
+
+/* Símbolos permitidos */
+static const Regla SIMBOLOS[] = {
+    {"(", TK_PAR_ABRE},
+    {")", TK_PAR_CIERRA},
+    {",", TK_COMA},
+    {"+", TK_MAS},
+    {"-", TK_MENOS},
+    {"*", TK_POR},
+    {"/", TK_ENTRE},
+};
+
+/* Símbolos que la gente suele escribir por costumbre de otros lenguajes;
+ * en vez de solo decir "no permitido", se explica qué usar en RP */
+static const struct {
+    char simbolo;
+    const char *mensaje;
+} SIMBOLOS_CON_AYUDA[] = {
+    {'=', "RP no usa '='; para declarar use 'fijate que <nombre> es <valor>' "
+          "y para asignar 'ponele <valor> a <nombre>'"},
+    {'.', "punto suelto: un 'con vuelto' lleva dígitos a ambos lados del punto (ej. 2.5)"},
+};
+
+#define CANTIDAD(tabla) (sizeof(tabla) / sizeof((tabla)[0]))
+
+/* ============================================================ estado del lector */
+
+/* Por dónde va leyendo el analizador */
+typedef struct {
+    const char *fuente;     /* el programa completo */
+    size_t pos;             /* posición actual (en bytes) */
     size_t largo;
     int linea;
     int columna;
-    ListaTokens *tokens;
-    ListaErrores *errores;
+    ListaTokens *tokens;    /* aquí se van guardando los tokens */
+    ListaErrores *errores;  /* y aquí los errores */
 } Lexico;
-
-/* ------------------------------------------------------------ clases de caracteres */
-
-static int es_digito(char c) {
-    return c >= '0' && c <= '9';
-}
-
-/* Bytes que ocupa la letra al inicio de `s` (0 si no es letra). Acepta las
- * letras ASCII y, en UTF-8, á é í ó ú ü ñ y sus mayúsculas (año, canción). */
-static int largo_letra(const char *s) {
-    unsigned char c = (unsigned char)s[0];
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) return 1;
-    if (c == 0xC3) {
-        static const unsigned char segundo_byte[] = {
-            0xA1, 0xA9, 0xAD, 0xB3, 0xBA, 0xBC, 0xB1, /* á é í ó ú ü ñ */
-            0x81, 0x89, 0x8D, 0x93, 0x9A, 0x9C, 0x91, /* Á É Í Ó Ú Ü Ñ */
-        };
-        for (size_t i = 0; i < sizeof segundo_byte; i++) {
-            if ((unsigned char)s[1] == segundo_byte[i]) return 2;
-        }
-    }
-    return 0;
-}
-
-static int largo_inicio_nombre(const char *s) {
-    return s[0] == '_' ? 1 : largo_letra(s);
-}
-
-static int largo_parte_nombre(const char *s) {
-    return es_digito(s[0]) ? 1 : largo_inicio_nombre(s);
-}
-
-/* Largo en bytes de una "palabra": letras, dígitos, '_' y opcionalmente '.' */
-static size_t largo_palabra(const char *s, int acepta_punto) {
-    size_t n = 0;
-    for (;;) {
-        int k = largo_parte_nombre(s + n);
-        if (k == 0 && acepta_punto && s[n] == '.') k = 1;
-        if (k == 0) return n;
-        n += (size_t)k;
-    }
-}
-
-/* Bytes que ocupa un carácter UTF-8 según su primer byte */
-static int largo_utf8(const char *s) {
-    unsigned char c = (unsigned char)s[0];
-    if (c >= 0xF0) return 4;
-    if (c >= 0xE0) return 3;
-    if (c >= 0xC0) return 2;
-    return 1;
-}
-
-/* ------------------------------------------------------------ utilidades */
 
 static const char *actual(Lexico *lx) {
     return lx->fuente + lx->pos;
 }
 
+/* Avanza `bytes` posiciones, llevando la cuenta de la línea y la columna */
 static void avanzar(Lexico *lx, size_t bytes) {
     for (size_t i = 0; i < bytes && lx->pos < lx->largo; i++) {
         unsigned char c = (unsigned char)lx->fuente[lx->pos++];
@@ -80,11 +101,12 @@ static void avanzar(Lexico *lx, size_t bytes) {
             lx->linea++;
             lx->columna = 1;
         } else if ((c & 0xC0) != 0x80) {
-            lx->columna++;  /* la columna cuenta caracteres, no bytes */
+            lx->columna++;  /* la columna cuenta letras, no bytes: 'ñ' ocupa 2 bytes pero es 1 letra */
         }
     }
 }
 
+/* Guarda un token nuevo en la lista */
 static Token *emitir(Lexico *lx, TipoToken tipo, const char *inicio, size_t n, int linea, int columna) {
     ListaTokens *l = lx->tokens;
     if (l->cantidad == l->capacidad) {
@@ -109,7 +131,93 @@ static void error_lexico(Lexico *lx, const char *inicio, size_t n, int linea, in
     va_end(args);
 }
 
-/* ------------------------------------------------------------ números */
+/* ============================================================ 2. LETRAS Y DÍGITOS */
+
+static int es_digito(char c) {
+    return c >= '0' && c <= '9';
+}
+
+/* Cuántos bytes ocupa la letra al inicio de `s` (0 si no es letra).
+ * Acepta a-z, A-Z y también á é í ó ú ü ñ con sus mayúsculas (en UTF-8 ocupan 2 bytes). */
+static int largo_letra(const char *s) {
+    unsigned char c = (unsigned char)s[0];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) return 1;
+    if (c == 0xC3) {
+        static const unsigned char segundo_byte[] = {
+            0xA1, 0xA9, 0xAD, 0xB3, 0xBA, 0xBC, 0xB1, /* á é í ó ú ü ñ */
+            0x81, 0x89, 0x8D, 0x93, 0x9A, 0x9C, 0x91, /* Á É Í Ó Ú Ü Ñ */
+        };
+        for (size_t i = 0; i < sizeof segundo_byte; i++) {
+            if ((unsigned char)s[1] == segundo_byte[i]) return 2;
+        }
+    }
+    return 0;
+}
+
+/* Un nombre empieza con letra o '_' ... */
+static int largo_inicio_nombre(const char *s) {
+    return s[0] == '_' ? 1 : largo_letra(s);
+}
+
+/* ... y después puede llevar letras, dígitos o '_' */
+static int largo_parte_nombre(const char *s) {
+    return es_digito(s[0]) ? 1 : largo_inicio_nombre(s);
+}
+
+/* Largo en bytes de una "palabra": letras, dígitos, '_' y, si se pide, también '.' */
+static size_t largo_palabra(const char *s, int acepta_punto) {
+    size_t n = 0;
+    for (;;) {
+        int k = largo_parte_nombre(s + n);
+        if (k == 0 && acepta_punto && s[n] == '.') k = 1;
+        if (k == 0) return n;
+        n += (size_t)k;
+    }
+}
+
+/* Cuántos bytes ocupa un carácter UTF-8, según su primer byte */
+static int largo_utf8(const char *s) {
+    unsigned char c = (unsigned char)s[0];
+    if (c >= 0xF0) return 4;
+    if (c >= 0xE0) return 3;
+    if (c >= 0xC0) return 2;
+    return 1;
+}
+
+/* 1 si el byte forma parte de un nombre (incluye los bytes de á, ñ, ...) */
+static int es_byte_de_nombre(unsigned char c) {
+    return es_digito((char)c) || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80;
+}
+
+/* 1 si el último token es un valor (5, x, "hola", ')'...).
+ * Sirve para saber qué significa un '-':  'x -7' es una resta, 'es -7' es un número negativo. */
+static int anterior_es_valor(const Lexico *lx) {
+    if (lx->tokens->cantidad == 0) return 0;
+    switch (lx->tokens->datos[lx->tokens->cantidad - 1].tipo) {
+        case TK_IDENT: case TK_CABAL: case TK_CON_VUELTO: case TK_CHISME:
+        case TK_SIMON: case TK_NEL: case TK_MAIZ: case TK_PAR_CIERRA:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+/* ============================================================ 3. CADA CLASE DE TOKEN */
+
+/* ---- Nombres y palabras reservadas:  edad, año, fijate, chamba ... */
+static void leer_palabra(Lexico *lx, int linea, int columna) {
+    const char *inicio = actual(lx);
+    size_t n = largo_palabra(inicio, 0);
+    avanzar(lx, n);
+    Token *t = emitir(lx, TK_IDENT, inicio, n, linea, columna);
+
+    /* Si está en la tabla PALABRAS es una palabra reservada; si no, es un nombre (IDENT) */
+    for (size_t i = 0; i < CANTIDAD(PALABRAS); i++) {
+        if (strcmp(t->lexema, PALABRAS[i].texto) == 0) t->tipo = PALABRAS[i].token;
+    }
+}
+
+/* ---- Números:  19, -7 (cabal)  ·  3.5, -0.5 (con vuelto) */
 
 static int es_cabal(const char *s) {
     if (*s == '-') s++;
@@ -127,7 +235,8 @@ static int es_con_vuelto(const char *s) {
     return *s == '\0';
 }
 
-static void diagnosticar_numero(Lexico *lx, const char *lexema, size_t n, int linea, int columna) {
+/* Explica por qué un número está mal escrito */
+static void numero_invalido(Lexico *lx, const char *lexema, size_t n, int linea, int columna) {
     const char *cuerpo = lexema[0] == '-' ? lexema + 1 : lexema;
     int tiene_letra = 0, puntos = 0;
     for (const char *p = cuerpo; *p; p++) {
@@ -147,7 +256,7 @@ static void diagnosticar_numero(Lexico *lx, const char *lexema, size_t n, int li
                      "después del punto (ej. 5.0)", lexema);
 }
 
-static void numero(Lexico *lx, int linea, int columna) {
+static void leer_numero(Lexico *lx, int linea, int columna) {
     const char *inicio = actual(lx);
     size_t n = inicio[0] == '-' ? 1 : 0;
     /* Se toma la "palabra" completa (2do, 5., 1.2.3) para reportarla en un solo error */
@@ -165,22 +274,13 @@ static void numero(Lexico *lx, int linea, int columna) {
     } else if (es_con_vuelto(lexema)) {
         emitir(lx, TK_CON_VUELTO, lexema, n, linea, columna)->decimal = strtod(lexema, NULL);
     } else {
-        diagnosticar_numero(lx, lexema, n, linea, columna);
+        numero_invalido(lx, lexema, n, linea, columna);
     }
     free(lexema);
 }
 
-/* ------------------------------------------------------------ otros tokens */
-
-static void palabra(Lexico *lx, int linea, int columna) {
-    const char *inicio = actual(lx);
-    size_t n = largo_palabra(inicio, 0);
-    avanzar(lx, n);
-    Token *t = emitir(lx, TK_IDENT, inicio, n, linea, columna);
-    t->tipo = buscar_palabra_reservada(t->lexema);
-}
-
-static void chisme(Lexico *lx, int linea, int columna) {
+/* ---- Chismes (textos):  "hola"  o  'hola' */
+static void leer_chisme(Lexico *lx, int linea, int columna) {
     const char *inicio = actual(lx);
     char comilla = inicio[0];
     size_t n = 1;
@@ -195,82 +295,62 @@ static void chisme(Lexico *lx, int linea, int columna) {
     }
 }
 
-/* 1 si el último token es un valor (5, x, "hola", ')'...): entonces un '-' que sigue es una resta */
-static int anterior_es_valor(const Lexico *lx) {
-    if (lx->tokens->cantidad == 0) return 0;
-    switch (lx->tokens->datos[lx->tokens->cantidad - 1].tipo) {
-        case TK_IDENT: case TK_CABAL: case TK_CON_VUELTO: case TK_CHISME:
-        case TK_SIMON: case TK_NEL: case TK_MAIZ: case TK_PAR_CIERRA:
-            return 1;
-        default:
-            return 0;
-    }
-}
-
-/* 1 si el byte es parte de un nombre (incluye los bytes de continuación de á, ñ, ...) */
-static int es_byte_de_nombre(unsigned char c) {
-    return es_digito((char)c) || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80;
-}
-
-static void simbolo(Lexico *lx, int linea, int columna) {
+/* ---- Símbolos:  ( ) , + - * / */
+static void leer_simbolo(Lexico *lx, int linea, int columna) {
     const char *inicio = actual(lx);
     size_t n = (size_t)largo_utf8(inicio);
     if (n > lx->largo - lx->pos) n = lx->largo - lx->pos;
-    int pegado_a_nombre = lx->pos > 0 && es_byte_de_nombre((unsigned char)lx->fuente[lx->pos - 1]) &&
-                          largo_inicio_nombre(inicio + 1);
+
+    /* Caso especial: 'mi-pisto' parece un nombre con guion. Para restar se dejan espacios: 'mi - pisto' */
+    int guion_en_nombre = inicio[0] == '-' && lx->pos > 0 &&
+                          es_byte_de_nombre((unsigned char)lx->fuente[lx->pos - 1]) && largo_inicio_nombre(inicio + 1);
     avanzar(lx, n);
-    switch (inicio[0]) {
-        case '(': emitir(lx, TK_PAR_ABRE, inicio, n, linea, columna); break;
-        case ')': emitir(lx, TK_PAR_CIERRA, inicio, n, linea, columna); break;
-        case ',': emitir(lx, TK_COMA, inicio, n, linea, columna); break;
-        case '+': emitir(lx, TK_MAS, inicio, n, linea, columna); break;
-        case '*': emitir(lx, TK_POR, inicio, n, linea, columna); break;
-        case '/': emitir(lx, TK_ENTRE, inicio, n, linea, columna); break;
-        case '-':
-            /* 'mi-pisto' parece un nombre con guion; para restar se dejan espacios: 'mi - pisto' */
-            if (pegado_a_nombre)
-                error_lexico(lx, inicio, n, linea, columna,
-                             "el '-' no se permite en nombres; si quiere restar, deje espacios (ej. 'a - b')");
-            else
-                emitir(lx, TK_MENOS, inicio, n, linea, columna);
-            break;
-        case '=':
-            error_lexico(lx, inicio, n, linea, columna,
-                         "RP no usa '='; para declarar use 'fijate que <nombre> es <valor>' "
-                         "y para asignar 'ponele <valor> a <nombre>'");
-            break;
-        case '.':
-            error_lexico(lx, inicio, n, linea, columna,
-                         "punto suelto: un 'con vuelto' lleva dígitos a ambos lados del punto (ej. 2.5)");
-            break;
-        default:
-            error_lexico(lx, inicio, n, linea, columna, "símbolo '%.*s' no permitido en RP", (int)n, inicio);
+    if (guion_en_nombre) {
+        error_lexico(lx, inicio, n, linea, columna,
+                     "el '-' no se permite en nombres; si quiere restar, deje espacios (ej. 'a - b')");
+        return;
     }
+
+    /* ¿Está en la tabla SIMBOLOS? */
+    for (size_t i = 0; i < CANTIDAD(SIMBOLOS); i++) {
+        if (n == 1 && inicio[0] == SIMBOLOS[i].texto[0]) {
+            emitir(lx, SIMBOLOS[i].token, inicio, n, linea, columna);
+            return;
+        }
+    }
+    /* ¿Es uno de los que tienen una explicación especial? */
+    for (size_t i = 0; i < CANTIDAD(SIMBOLOS_CON_AYUDA); i++) {
+        if (inicio[0] == SIMBOLOS_CON_AYUDA[i].simbolo) {
+            error_lexico(lx, inicio, n, linea, columna, "%s", SIMBOLOS_CON_AYUDA[i].mensaje);
+            return;
+        }
+    }
+    error_lexico(lx, inicio, n, linea, columna, "símbolo '%.*s' no permitido en RP", (int)n, inicio);
 }
 
-/* ------------------------------------------------------------ análisis */
+/* ============================================================ 4. CICLO PRINCIPAL */
 
 void lexico_analizar(const char *fuente, int linea_inicial, ListaTokens *tokens, ListaErrores *errores) {
     Lexico lx = {fuente, 0, strlen(fuente), linea_inicial, 1, tokens, errores};
 
-    /* Los archivos guardados con el Bloc de notas de Windows pueden empezar con un BOM UTF-8 */
+    /* Los archivos guardados con el Bloc de notas de Windows pueden empezar con 3 bytes invisibles (BOM) */
     if (strncmp(fuente, "\xEF\xBB\xBF", 3) == 0) lx.pos = 3;
 
     while (lx.pos < lx.largo) {
         const char *s = actual(&lx);
-        int linea = lx.linea, columna = lx.columna;
+        int linea = lx.linea, columna = lx.columna;  /* dónde empieza el token */
 
         if (*s == ' ' || *s == '\t' || *s == '\r') {
-            avanzar(&lx, 1);
+            avanzar(&lx, 1);                                   /* espacios: se ignoran */
         } else if (*s == '\n') {
-            emitir(&lx, TK_SALTO, "\\n", 2, linea, columna);
+            emitir(&lx, TK_SALTO, "\\n", 2, linea, columna);   /* fin de línea = fin de la instrucción */
             avanzar(&lx, 1);
         } else if (*s == '#') {
-            while (lx.pos < lx.largo && *actual(&lx) != '\n') avanzar(&lx, 1);
+            while (lx.pos < lx.largo && *actual(&lx) != '\n') avanzar(&lx, 1);  /* comentario: se ignora */
         } else if (*s == '"' || *s == '\'') {
-            chisme(&lx, linea, columna);
+            leer_chisme(&lx, linea, columna);
         } else if (es_digito(*s) || (*s == '-' && es_digito(s[1]) && !anterior_es_valor(&lx))) {
-            numero(&lx, linea, columna);
+            leer_numero(&lx, linea, columna);
         } else if (*s == '.' && es_digito(s[1])) {
             size_t n = largo_palabra(s, 1);
             avanzar(&lx, n);
@@ -278,12 +358,13 @@ void lexico_analizar(const char *fuente, int linea_inicial, ListaTokens *tokens,
                          "'%.*s' no es un número válido: un 'con vuelto' necesita al menos un dígito "
                          "antes del punto (ej. 0.5)", (int)n, s);
         } else if (largo_inicio_nombre(s)) {
-            palabra(&lx, linea, columna);
+            leer_palabra(&lx, linea, columna);
         } else {
-            simbolo(&lx, linea, columna);
+            leer_simbolo(&lx, linea, columna);
         }
     }
 
+    /* La última instrucción también termina con un fin de línea, aunque el archivo no lo tenga */
     if (tokens->cantidad == 0 || tokens->datos[tokens->cantidad - 1].tipo != TK_SALTO)
         emitir(&lx, TK_SALTO, "\\n", 2, lx.linea, lx.columna);
     emitir(&lx, TK_FIN, "", 0, lx.linea, lx.columna);
