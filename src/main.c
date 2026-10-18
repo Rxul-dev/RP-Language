@@ -108,16 +108,22 @@ static int empieza_con(const char *linea, const char *palabra) {
                                                linea[n] == '(' || linea[n] == '#');
 }
 
-/* Una chamba ocupa varias líneas: se siguen leyendo hasta 'ya estuvo'. Devuelve las líneas leídas. */
-static int leer_chamba(char *buf, size_t n) {
+static int abre_bloque(const char *linea) {
+    return empieza_con(linea, "chamba") || empieza_con(linea, "si");
+}
+
+/* Una chamba o un si ocupan varias líneas: se siguen leyendo hasta su 'ya estuvo', contando los
+ * bloques que se abren adentro. Devuelve cuántas líneas se leyeron. */
+static int leer_bloque(char *buf, size_t n) {
     char linea[1024];
-    int lineas = 0;
+    int lineas = 0, abiertos = 1;
     while (printf("...> "), fflush(stdout), fgets(linea, sizeof linea, stdin)) {
         lineas++;
         linea[strcspn(linea, "\r\n")] = '\0';
         strncat(buf, "\n", n - strlen(buf) - 1);
         strncat(buf, linea, n - strlen(buf) - 1);
-        if (empieza_con(linea, "ya")) break;
+        if (abre_bloque(linea)) abiertos++;
+        if (empieza_con(linea, "ya") && --abiertos == 0) break;
     }
     return lineas;
 }
@@ -160,7 +166,7 @@ static int modo_interactivo(void) {
         numero_linea++;
         int primera_linea = numero_linea;
         snprintf(fuente, sizeof fuente, "%s", linea);
-        if (empieza_con(comando, "chamba")) numero_linea += leer_chamba(fuente, sizeof fuente);
+        if (abre_bloque(comando)) numero_linea += leer_bloque(fuente, sizeof fuente);
 
         ListaTokens tokens = {0};
         ListaErrores errores = {0};

@@ -72,8 +72,20 @@ static int es_numero(TipoRP t) {
     return t == RP_CABAL || t == RP_CON_VUELTO;
 }
 
-int tipo_operacion(char op, TipoRP a, TipoRP b, TipoRP *resultado) {
-    if (op == '+' && (a == RP_CHISME || b == RP_CHISME)) {
+int operador_es_comparacion(const char *op) {
+    return strchr("=!<>", op[0]) != NULL;
+}
+
+static int es_igualdad(const char *op) {
+    return strcmp(op, "==") == 0 || strcmp(op, "!=") == 0;
+}
+
+int tipo_operacion(const char *op, TipoRP a, TipoRP b, TipoRP *resultado) {
+    if (operador_es_comparacion(op)) {
+        *resultado = RP_SIMONEL;
+        return es_igualdad(op) || (es_numero(a) && es_numero(b));
+    }
+    if (op[0] == '+' && (a == RP_CHISME || b == RP_CHISME)) {
         *resultado = RP_CHISME;
         return 1;
     }
@@ -92,23 +104,50 @@ static const char *con_articulo(TipoRP t) {
     }
 }
 
-void mensaje_operacion_invalida(char op, TipoRP a, TipoRP b, char *buf, size_t n) {
-    snprintf(buf, n, "no se puede usar '%c' entre %s y %s; %s", op, con_articulo(a), con_articulo(b),
-             op == '+' ? "'+' solo suma números o une un chisme con otro valor"
-                       : "esta operación solo funciona con números (cabal o con vuelto)");
+void mensaje_operacion_invalida(const char *op, TipoRP a, TipoRP b, char *buf, size_t n) {
+    const char *motivo = operador_es_comparacion(op) ? "'<', '>', '<=' y '>=' solo comparan números"
+                         : op[0] == '+'              ? "'+' solo suma números o une un chisme con otro valor"
+                                                     : "esta operación solo funciona con números (cabal o con vuelto)";
+    snprintf(buf, n, "no se puede usar '%s' entre %s y %s; %s", op, con_articulo(a), con_articulo(b), motivo);
 }
 
 static double como_decimal(const ValorRP *v) {
     return v->tipo == RP_CABAL ? (double)v->dato.cabal : v->dato.con_vuelto;
 }
 
-int valor_operar(char op, const ValorRP *a, const ValorRP *b, ValorRP *resultado, char *error, size_t n) {
+/* 1 si los dos valores son iguales */
+static int son_iguales(const ValorRP *a, const ValorRP *b) {
+    if (es_numero(a->tipo) && es_numero(b->tipo)) return como_decimal(a) == como_decimal(b);
+    if (a->tipo != b->tipo) return 0;
+    switch (a->tipo) {
+        case RP_CHISME: return strcmp(a->dato.chisme, b->dato.chisme) == 0;
+        case RP_SIMONEL: return a->dato.simonel == b->dato.simonel;
+        default: return 1;  /* ni maiz == ni maiz */
+    }
+}
+
+static int comparar(const char *op, const ValorRP *a, const ValorRP *b) {
+    if (strcmp(op, "==") == 0) return son_iguales(a, b);
+    if (strcmp(op, "!=") == 0) return !son_iguales(a, b);
+    double x = como_decimal(a), y = como_decimal(b);
+    if (strcmp(op, "<") == 0) return x < y;
+    if (strcmp(op, ">") == 0) return x > y;
+    if (strcmp(op, "<=") == 0) return x <= y;
+    return x >= y;
+}
+
+int valor_operar(const char *op, const ValorRP *a, const ValorRP *b, ValorRP *resultado, char *error, size_t n) {
     TipoRP tipo;
     if (!tipo_operacion(op, a->tipo, b->tipo, &tipo)) {
         mensaje_operacion_invalida(op, a->tipo, b->tipo, error, n);
         return 0;
     }
     resultado->tipo = tipo;
+
+    if (operador_es_comparacion(op)) {
+        resultado->dato.simonel = comparar(op, a, b);
+        return 1;
+    }
 
     if (tipo == RP_CHISME) {
         char texto_a[512], texto_b[512];
@@ -124,14 +163,14 @@ int valor_operar(char op, const ValorRP *a, const ValorRP *b, ValorRP *resultado
         return 1;
     }
 
-    if (op == '/' && como_decimal(b) == 0) {
+    if (op[0] == '/' && como_decimal(b) == 0) {
         snprintf(error, n, "división entre cero");
         resultado->tipo = RP_NI_MAIZ;
         return 0;
     }
     if (tipo == RP_CABAL) {
         long long x = a->dato.cabal, y = b->dato.cabal;
-        switch (op) {
+        switch (op[0]) {
             case '+': resultado->dato.cabal = x + y; break;
             case '-': resultado->dato.cabal = x - y; break;
             case '*': resultado->dato.cabal = x * y; break;
@@ -139,7 +178,7 @@ int valor_operar(char op, const ValorRP *a, const ValorRP *b, ValorRP *resultado
         }
     } else {
         double x = como_decimal(a), y = como_decimal(b);
-        switch (op) {
+        switch (op[0]) {
             case '+': resultado->dato.con_vuelto = x + y; break;
             case '-': resultado->dato.con_vuelto = x - y; break;
             case '*': resultado->dato.con_vuelto = x * y; break;

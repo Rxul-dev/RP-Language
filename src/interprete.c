@@ -25,6 +25,9 @@
 
 static const ValorRP NADA = {RP_NI_MAIZ, {0}};
 
+/* Una variable declarada dentro de un 'si' solo existe si el 'si' se cumplió */
+#define NO_EXISTE "la variable '%s' no existe (¿se declaró dentro de un 'si' que no se cumplió?)"
+
 static void salida_pantalla(void *contexto, const char *texto) {
     (void)contexto;
     printf("%s\n", texto);
@@ -121,7 +124,7 @@ static ValorRP evaluar(Interprete *in, const Nodo *valor) {
         default: {
             Celda *c = buscar(in, valor->nombre);
             if (!c) {
-                error_ejecucion(in, valor->linea, "la variable '%s' no existe", valor->nombre);
+                error_ejecucion(in, valor->linea, NO_EXISTE, valor->nombre);
                 return NADA;
             }
             return valor_copiar(&c->valor);
@@ -192,7 +195,7 @@ int interprete_ejecutar_sentencia(Interprete *in, const Nodo *s) {
             ValorRP v = evaluar(in, s->valor);  /* antes de liberar: 'ponele x a x' */
             Celda *c = buscar(in, s->nombre);
             if (in->hay_error || !c) {
-                if (!c) error_ejecucion(in, s->linea, "la variable '%s' no existe", s->nombre);
+                if (!c) error_ejecucion(in, s->linea, NO_EXISTE, s->nombre);
                 valor_liberar(&v);
                 break;
             }
@@ -206,7 +209,7 @@ int interprete_ejecutar_sentencia(Interprete *in, const Nodo *s) {
             if (c)
                 in->salida(in->contexto, tipo_rp_nombre(c->valor.tipo));
             else
-                error_ejecucion(in, s->linea, "la variable '%s' no existe", s->nombre);
+                error_ejecucion(in, s->linea, NO_EXISTE, s->nombre);
             break;
         }
         case NODO_CONTAME: {
@@ -227,6 +230,23 @@ int interprete_ejecutar_sentencia(Interprete *in, const Nodo *s) {
             }
             in->devuelto = v;
             in->devolviendo = 1;
+            break;
+        }
+        case NODO_SI: {
+            ValorRP condicion = evaluar(in, s->valor);
+            if (in->hay_error) {
+                valor_liberar(&condicion);
+                break;
+            }
+            if (condicion.tipo != RP_SIMONEL) {
+                error_ejecucion(in, s->linea, "la condición del 'si' debe dar simon o nel, pero dio un valor "
+                                "de tipo %s", tipo_rp_nombre(condicion.tipo));
+                valor_liberar(&condicion);
+                break;
+            }
+            /* Si es simon se ejecuta el cuerpo; un 'devolveme' adentro termina también la chamba */
+            for (int i = 0; condicion.dato.simonel && i < s->num_sentencias && !in->devolviendo && !in->hay_error; i++)
+                interprete_ejecutar_sentencia(in, s->sentencias[i]);
             break;
         }
         case NODO_CHAMBA:

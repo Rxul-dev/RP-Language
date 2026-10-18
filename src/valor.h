@@ -39,9 +39,15 @@ void valor_texto(const ValorRP *v, char *buf, size_t n);      /* como lo muestra
  *   números mezclados     → con vuelto
  *   chisme + cualquiera   → chisme (une los textos: "Edad: " + 19 = "Edad: 19")
  * Cualquier otra combinación es un error. */
-int tipo_operacion(char op, TipoRP a, TipoRP b, TipoRP *resultado);  /* 0 si no es válida */
-void mensaje_operacion_invalida(char op, TipoRP a, TipoRP b, char *buf, size_t n);
+int tipo_operacion(const char *op, TipoRP a, TipoRP b, TipoRP *resultado);  /* 0 si no es válida */
+void mensaje_operacion_invalida(const char *op, TipoRP a, TipoRP b, char *buf, size_t n);
 /* Calcula a op b; si no se puede, devuelve 0 y deja el motivo en `error` */
-int valor_operar(char op, const ValorRP *a, const ValorRP *b, ValorRP *resultado, char *error, size_t n);
+int valor_operar(const char *op, const ValorRP *a, const ValorRP *b, ValorRP *resultado, char *error, size_t n);
+
+/* Comparaciones ('==', '!=', '<', '>', '<=', '>='): el resultado siempre es simonel.
+ *   == y !=            → con cualquier par de valores (de tipos distintos nunca son iguales,
+ *                        salvo cabal y con vuelto: 2 == 2.0 es simon)
+ *   < > <= >=          → solo entre números */
+int operador_es_comparacion(const char *op);
 
 #endif

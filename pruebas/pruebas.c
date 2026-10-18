@@ -237,6 +237,49 @@ static void pruebas_chambas(void) {
     resultado_liberar(&r);
 }
 
+static void pruebas_si(void) {
+    /* Comparaciones */
+    verificar_salida("contame 3 > 2", "simon");
+    verificar_salida("contame 3 <= 2", "nel");
+    verificar_salida("contame 2 == 2.0", "simon");
+    verificar_salida("contame \"hola\" == \"hola\"", "simon");
+    verificar_salida("contame \"hola\" != \"chao\"", "simon");
+    verificar_salida("contame 1 == \"1\"", "nel");
+    verificar_salida("fijate que x\ncontame x == ni maiz", "simon");
+    verificar_salida("contame 1 + 1 == 2", "simon");
+    verificar_salida("contame 3 > -5", "simon");
+    verificar_salida("fijate que mayor es 20 >= 18\nque onda mayor", "simonel");
+
+    /* El cuerpo solo se ejecuta si la condición es simon */
+    verificar_salida("si 5 > 3\n  contame \"sí\"\nya estuvo\ncontame \"fin\"", "sí|fin");
+    verificar_salida("si 1 > 2\n  contame \"no\"\nya estuvo\ncontame \"fin\"", "fin");
+    verificar_salida("si simon\n  si nel\n    contame 1\n  ya estuvo\n  contame 2\nya estuvo", "2");
+    /* 'devolveme' dentro de un si termina la chamba */
+    verificar_salida("chamba factorial(n)\n  si n <= 1\n    devolveme 1\n  ya estuvo\n"
+                     "  devolveme n * factorial(n - 1)\nya estuvo\ncontame factorial(5)", "120");
+    /* Una variable que cambia de tipo dentro del si queda dinámica: no hay error semántico falso */
+    verificar_salida("fijate que x es 1\nsi nel\n  ponele \"a\" a x\nya estuvo\ncontame x + 1", "2");
+    /* Una variable declarada en un si que no se cumplió no existe */
+    verificar_salida("si nel\n  fijate que v es 1\nya estuvo\ncontame v",
+                     "ERROR: la variable 'v' no existe (¿se declaró dentro de un 'si' que no se cumplió?)");
+    /* La condición dinámica se revisa al ejecutar */
+    verificar_salida("chamba f(c)\n  si c\n    contame 1\n  ya estuvo\nya estuvo\nf(5)",
+                     "ERROR: la condición del 'si' debe dar simon o nel, pero dio un valor de tipo cabal");
+
+    /* Errores */
+    verificar_error("fijate que x = 5", FASE_LEXICA);
+    verificar_error("contame 1 ! 2", FASE_LEXICA);
+    verificar_error("si 1 >\nya estuvo", FASE_SINTACTICA);
+    verificar_error("si 1 > 2\n  contame 1", FASE_SINTACTICA);
+    verificar_error("si 1 > 2 contame 1\nya estuvo", FASE_SINTACTICA);
+    verificar_error("contame 1 < 2 < 3", FASE_SINTACTICA);
+    verificar_error("si simon\n  chamba f()\n  ya estuvo\nya estuvo", FASE_SINTACTICA);
+    verificar_error("fijate que si es 1", FASE_SINTACTICA);
+    verificar_error("si 5\nya estuvo", FASE_SEMANTICA);
+    verificar_error("contame \"a\" < 1", FASE_SEMANTICA);
+    verificar_error("si simon\n  devolveme 1\nya estuvo", FASE_SEMANTICA);
+}
+
 static void prueba_ejemplo_completo(void) {
     FILE *f = fopen("ejemplos/completo.rp", "rb");
     VERIFICAR(f != NULL, "no se encontró ejemplos/completo.rp (ejecute desde la carpeta del proyecto)");
@@ -254,6 +297,7 @@ int main(void) {
     pruebas_tipos();
     pruebas_expresiones();
     pruebas_chambas();
+    pruebas_si();
     prueba_ejemplo_completo();
     printf("%d de %d pruebas pasaron\n", total - fallos, total);
     return fallos ? 1 : 0;

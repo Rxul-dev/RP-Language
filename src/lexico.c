@@ -48,12 +48,19 @@ static const Regla PALABRAS[] = {
     {"contame",   TK_CONTAME},    /* contame edad                 */
     {"chamba",    TK_CHAMBA},     /* chamba sumar(x, y)           */
     {"devolveme", TK_DEVOLVEME},  /* devolveme x + y              */
-    {"ya",        TK_YA},         /* ya estuvo = fin de la chamba */
+    {"si",        TK_SI},         /* si edad >= 18                */
+    {"ya",        TK_YA},         /* ya estuvo = fin del bloque   */
     {"estuvo",    TK_ESTUVO},
 };
 
-/* Símbolos permitidos */
+/* Símbolos permitidos. Los de dos caracteres van primero: así "<=" no se lee como "<" y "=" */
 static const Regla SIMBOLOS[] = {
+    {"==", TK_IGUAL},
+    {"!=", TK_DISTINTO},
+    {"<=", TK_MENOR_IGUAL},
+    {">=", TK_MAYOR_IGUAL},
+    {"<", TK_MENOR},
+    {">", TK_MAYOR},
     {"(", TK_PAR_ABRE},
     {")", TK_PAR_CIERRA},
     {",", TK_COMA},
@@ -69,8 +76,8 @@ static const struct {
     char simbolo;
     const char *mensaje;
 } SIMBOLOS_CON_AYUDA[] = {
-    {'=', "RP no usa '='; para declarar use 'fijate que <nombre> es <valor>' "
-          "y para asignar 'ponele <valor> a <nombre>'"},
+    {'=', "RP no usa '=' solo; para declarar use 'fijate que <nombre> es <valor>', "
+          "para asignar 'ponele <valor> a <nombre>' y para comparar '=='"},
     {'.', "punto suelto: un 'con vuelto' lleva dígitos a ambos lados del punto (ej. 2.5)"},
 };
 
@@ -295,29 +302,32 @@ static void leer_chisme(Lexico *lx, int linea, int columna) {
     }
 }
 
-/* ---- Símbolos:  ( ) , + - * / */
+/* ---- Símbolos:  ( ) , + - * /  == != < > <= >= */
 static void leer_simbolo(Lexico *lx, int linea, int columna) {
     const char *inicio = actual(lx);
-    size_t n = (size_t)largo_utf8(inicio);
-    if (n > lx->largo - lx->pos) n = lx->largo - lx->pos;
 
     /* Caso especial: 'mi-pisto' parece un nombre con guion. Para restar se dejan espacios: 'mi - pisto' */
-    int guion_en_nombre = inicio[0] == '-' && lx->pos > 0 &&
-                          es_byte_de_nombre((unsigned char)lx->fuente[lx->pos - 1]) && largo_inicio_nombre(inicio + 1);
-    avanzar(lx, n);
-    if (guion_en_nombre) {
-        error_lexico(lx, inicio, n, linea, columna,
+    if (inicio[0] == '-' && lx->pos > 0 && es_byte_de_nombre((unsigned char)lx->fuente[lx->pos - 1]) &&
+        largo_inicio_nombre(inicio + 1)) {
+        avanzar(lx, 1);
+        error_lexico(lx, inicio, 1, linea, columna,
                      "el '-' no se permite en nombres; si quiere restar, deje espacios (ej. 'a - b')");
         return;
     }
 
     /* ¿Está en la tabla SIMBOLOS? */
     for (size_t i = 0; i < CANTIDAD(SIMBOLOS); i++) {
-        if (n == 1 && inicio[0] == SIMBOLOS[i].texto[0]) {
-            emitir(lx, SIMBOLOS[i].token, inicio, n, linea, columna);
+        size_t largo = strlen(SIMBOLOS[i].texto);
+        if (strncmp(inicio, SIMBOLOS[i].texto, largo) == 0) {
+            avanzar(lx, largo);
+            emitir(lx, SIMBOLOS[i].token, inicio, largo, linea, columna);
             return;
         }
     }
+
+    size_t n = (size_t)largo_utf8(inicio);
+    if (n > lx->largo - lx->pos) n = lx->largo - lx->pos;
+    avanzar(lx, n);
     /* ¿Es uno de los que tienen una explicación especial? */
     for (size_t i = 0; i < CANTIDAD(SIMBOLOS_CON_AYUDA); i++) {
         if (inicio[0] == SIMBOLOS_CON_AYUDA[i].simbolo) {

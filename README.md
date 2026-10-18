@@ -55,6 +55,7 @@ Cada instrucción ocupa una línea. Los comentarios empiezan con `#`.
 | `ponele 20 a x` | Asigna un nuevo valor | `x = 20` |
 | `que onda x` | Muestra el tipo | `print(type(x))` |
 | `contame x + 1` | Muestra un valor | `print(x + 1)` |
+| `si x >= 18` … `ya estuvo` | Ejecuta el bloque si la condición es `simon` | `if x >= 18:` |
 | `chamba f(m, n)` … `ya estuvo` | Declara una función | `def f(m, n):` |
 | `devolveme valor` | Devuelve un valor desde una chamba | `return valor` |
 | `f(1, 2)` | Llama una chamba | `f(1, 2)` |
@@ -79,6 +80,21 @@ El tipo se deduce del valor y puede cambiar al asignar otro valor (tipado dinám
 - Con un `con vuelto` el resultado es `con vuelto` (`7 / 2.0` = `3.5`).
 - `+` con un `chisme` concatena (`"Edad: " + 19` = `Edad: 19`).
 - La resta entre nombres requiere espacios: `x - y`.
+- Comparaciones: `==  !=  <  >  <=  >=`, que dan `simon` o `nel`. `<`, `>`, `<=` y
+  `>=` solo comparan números; `==` y `!=` aceptan cualquier valor (`2 == 2.0` es `simon`).
+
+### Condicionales
+
+```
+si edad >= 18
+    contame "Es mayor de edad"
+ya estuvo
+```
+
+- La condición debe dar `simon` o `nel`.
+- Un `si` puede ir dentro de otro `si` o de una chamba; un `devolveme` adentro termina la chamba.
+- Las variables declaradas dentro del bloque se ven afuera, pero solo existen si
+  la condición se cumplió (como en Python).
 
 ### Chambas (funciones)
 
@@ -102,7 +118,7 @@ contame promedio(8, 10)        # 9
 Empiezan con letra o `_` y pueden contener letras (incluidas `ñ` y tildes),
 dígitos y `_`. Distinguen mayúsculas. No pueden ser palabras reservadas:
 `fijate` `que` `es` `ponele` `a` `onda` `simon` `nel` `ni` `maiz` `contame`
-`chamba` `devolveme` `ya` `estuvo`.
+`si` `chamba` `devolveme` `ya` `estuvo`.
 
 ### Errores
 
@@ -134,15 +150,18 @@ programa.rp → Léxico → tokens → Sintáctico → AST → Semántico → ta
 ```
 programa    → { linea } FIN
 linea       → [ sentencia ] SALTO
-sentencia   → declaracion | asignacion | consulta | contame | devolveme | chamba | llamada
+sentencia   → declaracion | asignacion | consulta | contame | devolveme | si | chamba | llamada
 declaracion → 'fijate' 'que' IDENT [ 'es' expresion ]
 asignacion  → 'ponele' expresion 'a' IDENT
 consulta    → 'que' 'onda' IDENT
 contame     → 'contame' expresion
 devolveme   → 'devolveme' [ expresion ]
-chamba      → 'chamba' IDENT '(' [ IDENT { ',' IDENT } ] ')' SALTO { linea } 'ya' 'estuvo'
+si          → 'si' expresion SALTO bloque
+chamba      → 'chamba' IDENT '(' [ IDENT { ',' IDENT } ] ')' SALTO bloque
+bloque      → { linea } 'ya' 'estuvo'
 llamada     → IDENT '(' [ expresion { ',' expresion } ] ')'
-expresion   → termino { ('+' | '-') termino }
+expresion   → suma [ ('==' | '!=' | '<' | '>' | '<=' | '>=') suma ]
+suma        → termino { ('+' | '-') termino }
 termino     → factor { ('*' | '/') factor }
 factor      → CABAL | CON_VUELTO | CHISME | 'simon' | 'nel' | 'ni' 'maiz'
             | IDENT | llamada | '(' expresion ')'

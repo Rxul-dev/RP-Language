@@ -14,6 +14,8 @@
  */
 #include "semantico.h"
 
+#include <stdlib.h>
+
 static void anotar(Nodo *nodo, TipoRP tipo) {
     nodo->tipo = tipo;
     nodo->tiene_tipo = 1;
@@ -71,12 +73,16 @@ static TipoRP operacion(Semantico *sem, Nodo *nodo) {
     TipoRP izq = tipo_de(sem, nodo->izq);
     TipoRP der = tipo_de(sem, nodo->der);
     TipoRP resultado = RP_DESCONOCIDO;
-    /* Si un lado es dinámico, la operación se revisa al ejecutar */
-    if (izq != RP_DESCONOCIDO && der != RP_DESCONOCIDO && !tipo_operacion(nodo->operador, izq, der, &resultado)) {
-        char mensaje[300];
-        mensaje_operacion_invalida(nodo->operador, izq, der, mensaje, sizeof mensaje);
-        errores_agregar(sem->errores, FASE_SEMANTICA, nodo->linea, 0, "%s", mensaje);
-        resultado = RP_DESCONOCIDO;
+    if (izq != RP_DESCONOCIDO && der != RP_DESCONOCIDO) {
+        if (!tipo_operacion(nodo->operador, izq, der, &resultado)) {
+            char mensaje[300];
+            mensaje_operacion_invalida(nodo->operador, izq, der, mensaje, sizeof mensaje);
+            errores_agregar(sem->errores, FASE_SEMANTICA, nodo->linea, 0, "%s", mensaje);
+            resultado = RP_DESCONOCIDO;
+        }
+    } else if (operador_es_comparacion(nodo->operador)) {
+        /* Si un lado es dinámico la operación se revisa al ejecutar, pero una comparación siempre da simonel */
+        resultado = RP_SIMONEL;
     }
     anotar(nodo, resultado);
     return resultado;
@@ -170,6 +176,32 @@ static void devolveme(Semantico *sem, Nodo *nodo) {
     anotar(nodo, tipo);
 }
 
+/* si → la condición debe dar simon o nel */
+static void si(Semantico *sem, Nodo *nodo) {
+    TipoRP tipo = tipo_de(sem, nodo->valor);
+    if (tipo != RP_DESCONOCIDO && tipo != RP_SIMONEL)
+        errores_agregar(sem->errores, FASE_SEMANTICA, nodo->linea, 0,
+                        "la condición del 'si' debe dar simon o nel, pero da un valor de tipo %s; "
+                        "use una comparación, por ejemplo 'edad >= 18'", tipo_rp_nombre(tipo));
+
+    /* El cuerpo puede no ejecutarse: si adentro una variable cambia de tipo, después del 'si'
+     * su tipo se sabe hasta ejecutar. Se guardan los tipos de antes para comparar. */
+    int antes = sem->tabla->cantidad;
+    TipoRP *tipos = xcalloc(antes ? (size_t)antes : 1, sizeof *tipos);
+    for (int i = 0; i < antes; i++) tipos[i] = sem->tabla->orden[i]->tipo;
+
+    for (int i = 0; i < nodo->num_sentencias; i++) semantico_visitar(sem, nodo->sentencias[i]);
+
+    for (int i = 0; i < antes; i++) {
+        Simbolo *s = sem->tabla->orden[i];
+        if (s->tipo == tipos[i]) continue;
+        s->tipo = RP_DESCONOCIDO;
+        if (s->historial.datos[s->historial.cantidad - 1] != RP_DESCONOCIDO)
+            enteros_agregar(&s->historial, RP_DESCONOCIDO);
+    }
+    free(tipos);
+}
+
 /* chamba → se declara en el ámbito global y su cuerpo se revisa en un ámbito propio */
 static void chamba(Semantico *sem, Nodo *nodo) {
     Simbolo *previo = ts_buscar_en_ambito(sem->tabla, nodo->nombre);
@@ -209,6 +241,7 @@ void semantico_visitar(Semantico *sem, Nodo *sentencia) {
         case NODO_CONSULTA_TIPO: consulta_tipo(sem, sentencia); break;
         case NODO_CONTAME: contame(sem, sentencia); break;
         case NODO_DEVOLVEME: devolveme(sem, sentencia); break;
+        case NODO_SI: si(sem, sentencia); break;
         case NODO_CHAMBA: chamba(sem, sentencia); break;
         case NODO_LLAMADA: llamada(sem, sentencia); break;
         default: break;

@@ -18,11 +18,12 @@ typedef enum {
     NODO_CONSULTA_TIPO, /* que onda <nombre>                             */
     NODO_LITERAL,       /* 42, 3.5, "hola", simon, nel, ni maiz          */
     NODO_VARIABLE,      /* nombre de variable usado como valor           */
-    NODO_OPERACION,     /* <izq> + <der>   (también - * /)               */
+    NODO_OPERACION,     /* <izq> + <der>   (también - * / == != < > <= >=) */
     NODO_CHAMBA,        /* chamba <nombre>(<parámetros>) ... ya estuvo   */
     NODO_PARAMETRO,     /* un parámetro de una chamba                    */
     NODO_LLAMADA,       /* <nombre>(<argumentos>)                        */
     NODO_DEVOLVEME,     /* devolveme [<valor>]                           */
+    NODO_SI,            /* si <condición> ... ya estuvo                  */
     NODO_CONTAME        /* contame <valor>                               */
 } ClaseNodo;
 
@@ -31,9 +32,10 @@ typedef struct Nodo {
     int linea;
 
     char *nombre;        /* DECLARACION, ASIGNACION, CONSULTA_TIPO, VARIABLE, CHAMBA, PARAMETRO, LLAMADA */
-    struct Nodo *valor;  /* DECLARACION y DEVOLVEME (NULL si no tiene valor), ASIGNACION, CONTAME */
+    struct Nodo *valor;  /* DECLARACION y DEVOLVEME (NULL si no tiene valor), ASIGNACION, CONTAME;
+                            SI: la condición */
 
-    char operador;       /* OPERACION: '+', '-', '*' o '/' */
+    char operador[3];    /* OPERACION: "+", "-", "*", "/", "==", "!=", "<", ">", "<=" o ">=" */
     struct Nodo *izq;    /* OPERACION */
     struct Nodo *der;    /* OPERACION */
 
@@ -47,7 +49,7 @@ typedef struct Nodo {
     int tiene_tipo;      /* 1 cuando `tipo` ya fue calculado */
     TipoRP tipo;
 
-    struct Nodo **sentencias; /* PROGRAMA y CHAMBA (el cuerpo) */
+    struct Nodo **sentencias; /* PROGRAMA, CHAMBA y SI (el cuerpo) */
     int num_sentencias;
     int capacidad;
 } Nodo;

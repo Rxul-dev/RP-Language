@@ -1,0 +1,22 @@
+# El 'si' ejecuta sus líneas solo cuando la condición da simon, y se cierra con 'ya estuvo'.
+# Comparaciones: ==  !=  <  >  <=  >=
+
+fijate que edad es 20
+
+si edad >= 18
+    contame "Es mayor de edad"
+ya estuvo
+
+si edad < 18
+    contame "Es menor de edad"      # no se muestra
+ya estuvo
+
+# Con un 'si', una chamba que se llama a sí misma sabe cuándo parar
+chamba factorial(n)
+    si n <= 1
+        devolveme 1
+    ya estuvo
+    devolveme n * factorial(n - 1)
+ya estuvo
+
+contame factorial(5)                # 120

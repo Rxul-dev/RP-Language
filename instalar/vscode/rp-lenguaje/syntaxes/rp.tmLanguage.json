@@ -27,14 +27,19 @@
           "match": "\\b(chamba)\\s+([A-Za-z_ÁÉÍÓÚÜÑáéíóúüñ][A-Za-z0-9_ÁÉÍÓÚÜÑáéíóúüñ]*)",
           "captures": { "1": { "name": "storage.type.function.rp" }, "2": { "name": "entity.name.function.rp" } }
         },
-        { "name": "keyword.control.rp", "match": "\\bya\\s+estuvo\\b|\\b(devolveme|ya|estuvo)\\b" },
+        { "name": "keyword.control.rp", "match": "\\bya\\s+estuvo\\b|\\b(devolveme|si|ya|estuvo)\\b" },
         { "name": "support.function.rp", "match": "\\bcontame\\b" },
         { "name": "keyword.other.asignacion.rp", "match": "\\b(ponele|es|a)\\b" },
         { "name": "keyword.other.rp", "match": "\\b(fijate|que|onda)\\b" }
       ]
     },
     "constante": { "name": "constant.language.rp", "match": "\\b(simon|nel|ni\\s+maiz|ni|maiz)\\b" },
-    "operador": { "name": "keyword.operator.arithmetic.rp", "match": "[-+*/]" },
+    "operador": {
+      "patterns": [
+        { "name": "keyword.operator.comparison.rp", "match": "==|!=|<=|>=|<|>" },
+        { "name": "keyword.operator.arithmetic.rp", "match": "[-+*/]" }
+      ]
+    },
     "llamada": {
       "match": "([A-Za-z_ÁÉÍÓÚÜÑáéíóúüñ][A-Za-z0-9_ÁÉÍÓÚÜÑáéíóúüñ]*)\\s*(?=\\()",
       "captures": { "1": { "name": "entity.name.function.rp" } }

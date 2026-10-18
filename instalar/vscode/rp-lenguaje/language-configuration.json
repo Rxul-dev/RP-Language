@@ -7,6 +7,6 @@
     { "open": "'", "close": "'", "notIn": ["string", "comment"] }
   ],
   "surroundingPairs": [["\"", "\""], ["'", "'"], ["(", ")"]],
-  "indentationRules": { "increaseIndentPattern": "^\\s*chamba\\b.*$", "decreaseIndentPattern": "^\\s*ya\\s+estuvo\\b" },
+  "indentationRules": { "increaseIndentPattern": "^\\s*(chamba|si)\\b.*$", "decreaseIndentPattern": "^\\s*ya\\s+estuvo\\b" },
   "wordPattern": "[A-Za-z_ÁÉÍÓÚÜÑáéíóúüñ][A-Za-z0-9_ÁÉÍÓÚÜÑáéíóúüñ]*|-?[0-9]+(\\.[0-9]+)?"
 }

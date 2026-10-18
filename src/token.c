@@ -11,9 +11,10 @@
 /* El nombre de cada token, en el mismo orden que el enum TipoToken de token.h */
 static const char *NOMBRES[] = {
     "FIJATE", "QUE", "ES", "PONELE", "A", "SIMON", "NEL", "NI", "MAIZ", "ONDA",
-    "CHAMBA", "YA", "ESTUVO", "DEVOLVEME", "CONTAME",
+    "CHAMBA", "YA", "ESTUVO", "DEVOLVEME", "SI", "CONTAME",
     "IDENT", "CABAL", "CON_VUELTO", "CHISME",
     "PAR_ABRE", "PAR_CIERRA", "COMA", "MAS", "MENOS", "POR", "ENTRE",
+    "IGUAL", "DISTINTO", "MENOR", "MAYOR", "MENOR_IGUAL", "MAYOR_IGUAL",
     "SALTO", "ERROR", "FIN",
 };
 
@@ -35,6 +36,12 @@ const char *token_categoria(TipoToken tipo) {
         case TK_MENOS:
         case TK_POR:
         case TK_ENTRE: return "operador aritmético";
+        case TK_IGUAL:
+        case TK_DISTINTO:
+        case TK_MENOR:
+        case TK_MAYOR:
+        case TK_MENOR_IGUAL:
+        case TK_MAYOR_IGUAL: return "operador de comparación";
         case TK_SALTO: return "fin de sentencia";
         case TK_ERROR: return "error léxico";
         default: return "fin de archivo";

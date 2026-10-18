@@ -20,13 +20,14 @@
 #include "util.h"
 
 #define INICIO_SENTENCIA \
-    "las sentencias empiezan con 'fijate que', 'ponele', 'que onda', 'contame', 'chamba' o el nombre de una chamba"
+    "las sentencias empiezan con 'fijate que', 'ponele', 'que onda', 'contame', 'si', 'chamba' o el nombre de una chamba"
 
 typedef struct {
     const ListaTokens *tokens;
     int pos;
     ListaErrores *errores;
     const Token *chamba_abierta;  /* el nombre de la chamba cuyo cuerpo se está leyendo, o NULL */
+    int si_abiertos;              /* cuántos 'si' se están leyendo, uno dentro de otro */
 } Parser;
 
 /* ------------------------------------------------------------ utilidades */
@@ -78,30 +79,24 @@ static void saltar_linea(Parser *p) {
     while (!verificar(p, TK_SALTO) && !verificar(p, TK_FIN)) avanzar(p);
 }
 
-/* Modo pánico para una chamba con el encabezado mal escrito: se descarta todo hasta su
- * 'ya estuvo' (o hasta la siguiente chamba) para no reportar su cuerpo como errores sueltos. */
-static void saltar_chamba(Parser *p) {
+/* Modo pánico para un bloque (chamba o si) con el encabezado mal escrito: se descarta todo
+ * hasta su 'ya estuvo' para no reportar su cuerpo como errores sueltos. Se cuentan los 'si'
+ * de adentro para no confundir su 'ya estuvo' con el del bloque. */
+static void saltar_bloque(Parser *p) {
+    int abiertos = 1;
     for (;;) {
         saltar_linea(p);
         if (verificar(p, TK_FIN)) return;
         avanzar(p);  /* el salto de línea */
-        if (verificar(p, TK_YA)) {
+        if (verificar(p, TK_SI)) {
+            abiertos++;
+        } else if (verificar(p, TK_YA) && --abiertos == 0) {
             saltar_linea(p);
             return;
-        }
-        if (verificar(p, TK_CHAMBA)) {
+        } else if (verificar(p, TK_CHAMBA)) {
             p->pos--;  /* la siguiente chamba se analiza normalmente */
             return;
         }
-    }
-}
-
-static const char *simbolo_operador(TipoToken tipo) {
-    switch (tipo) {
-        case TK_MAS: return "+";
-        case TK_MENOS: return "-";
-        case TK_POR: return "*";
-        default: return "/";
     }
 }
 
@@ -237,7 +232,7 @@ static Nodo *operacion(Parser *p, Nodo *izq, Nodo *(*siguiente_nivel)(Parser *, 
         return NULL;
     }
     Nodo *n = nodo_nuevo(NODO_OPERACION, op->linea);
-    n->operador = simbolo_operador(op->tipo)[0];
+    snprintf(n->operador, sizeof n->operador, "%s", op->lexema);
     n->izq = izq;
     n->der = der;
     return n;
@@ -250,10 +245,24 @@ static Nodo *termino(Parser *p, const char *contexto) {
     return n;
 }
 
-/* expresion → termino { ('+' | '-') termino } */
-static Nodo *expresion(Parser *p, const char *contexto) {
+/* suma → termino { ('+' | '-') termino } */
+static Nodo *suma(Parser *p, const char *contexto) {
     Nodo *n = termino(p, contexto);
     while (n && (verificar(p, TK_MAS) || verificar(p, TK_MENOS))) n = operacion(p, n, termino);
+    return n;
+}
+
+static int es_comparacion(TipoToken tipo) {
+    return tipo == TK_IGUAL || tipo == TK_DISTINTO || tipo == TK_MENOR || tipo == TK_MAYOR ||
+           tipo == TK_MENOR_IGUAL || tipo == TK_MAYOR_IGUAL;
+}
+
+/* expresion → suma [ ('==' | '!=' | '<' | '>' | '<=' | '>=') suma ]
+ * La comparación va al final: en 'x + 1 > 5' primero se suma y luego se compara.
+ * Solo se permite una: '1 < x < 3' es un error. */
+static Nodo *expresion(Parser *p, const char *contexto) {
+    Nodo *n = suma(p, contexto);
+    if (n && es_comparacion(actual(p)->tipo)) n = operacion(p, n, suma);
     return n;
 }
 
@@ -364,17 +373,76 @@ static Nodo *devolveme(Parser *p) {
 
 static void linea(Parser *p, Nodo *destino);
 
-/* chamba → 'chamba' IDENT '(' [ IDENT { ',' IDENT } ] ')' SALTO { linea } 'ya' 'estuvo' */
+/* bloque → { linea } 'ya' 'estuvo'
+ * El cuerpo de una chamba o de un si; sus sentencias se agregan a `destino`.
+ * `que` describe el bloque para los mensajes ("la chamba 'sumar'"). Devuelve 0 si hubo error. */
+static int bloque(Parser *p, Nodo *destino, const char *que) {
+    char buf[200];
+    for (;;) {
+        if (verificar(p, TK_SALTO)) {
+            avanzar(p);
+        } else if (verificar(p, TK_FIN)) {
+            error_en(p, actual(p), "%s no se cerró: falta 'ya estuvo' al final", que);
+            return 0;
+        } else if (verificar(p, TK_YA)) {
+            avanzar(p);
+            if (!verificar(p, TK_ESTUVO)) {
+                error_en(p, actual(p), "se esperaba 'estuvo' después de 'ya': %s se cierra con 'ya estuvo' "
+                         "(se encontró %s)", que, describir(actual(p), buf, sizeof buf));
+                return 0;
+            }
+            avanzar(p);
+            return 1;
+        } else {
+            linea(p, destino);
+        }
+    }
+}
+
+/* si → 'si' expresion SALTO bloque */
+static Nodo *si(Parser *p) {
+    const Token *inicio = avanzar(p);
+    char buf[200], que[100];
+    Nodo *condicion = expresion(p, "después de 'si'");
+    if (!condicion) {
+        saltar_bloque(p);
+        return NULL;
+    }
+    if (!verificar(p, TK_SALTO)) {
+        error_en(p, actual(p), "después de la condición del 'si' va un salto de línea; lo que se hace "
+                 "se escribe en las líneas siguientes (sobra %s)", describir(actual(p), buf, sizeof buf));
+        ast_liberar(condicion);
+        saltar_bloque(p);
+        return NULL;
+    }
+    Nodo *n = nodo_nuevo(NODO_SI, inicio->linea);
+    n->valor = condicion;
+
+    snprintf(que, sizeof que, "el 'si' de la línea %d", inicio->linea);
+    p->si_abiertos++;
+    int ok = bloque(p, n, que);
+    p->si_abiertos--;
+    if (!ok) {
+        ast_liberar(n);
+        return NULL;
+    }
+    return n;
+}
+
+/* chamba → 'chamba' IDENT '(' [ IDENT { ',' IDENT } ] ')' SALTO bloque */
 static Nodo *chamba(Parser *p) {
     const Token *inicio = avanzar(p);
-    char buf[200];
+    char buf[200], que[100];
     if (p->chamba_abierta)
         return error_en(p, inicio, "no se puede declarar una chamba dentro de otra; "
                         "¿olvidó cerrar '%s' con 'ya estuvo'?", p->chamba_abierta->lexema);
+    if (p->si_abiertos)
+        return error_en(p, inicio, "las chambas se declaran afuera de los bloques 'si'; "
+                        "¿olvidó cerrar el 'si' con 'ya estuvo'?");
 
     const Token *nombre_chamba = leer_nombre(p, "chamba", "después de 'chamba'");
     if (!nombre_chamba) {
-        saltar_chamba(p);
+        saltar_bloque(p);
         return NULL;
     }
     Nodo *n = nodo_nuevo(NODO_CHAMBA, inicio->linea);
@@ -409,41 +477,21 @@ static Nodo *chamba(Parser *p) {
         goto error;
     }
 
-    /* Cuerpo: líneas hasta 'ya estuvo' */
+    snprintf(que, sizeof que, "la chamba '%s'", nombre_chamba->lexema);
     p->chamba_abierta = nombre_chamba;
-    for (;;) {
-        if (verificar(p, TK_SALTO)) {
-            avanzar(p);
-        } else if (verificar(p, TK_FIN)) {
-            error_en(p, inicio, "la chamba '%s' no se cerró: falta 'ya estuvo' al final", nombre_chamba->lexema);
-            p->chamba_abierta = NULL;
-            ast_liberar(n);
-            return NULL;
-        } else if (verificar(p, TK_YA)) {
-            avanzar(p);
-            if (!verificar(p, TK_ESTUVO)) {
-                error_en(p, actual(p), "se esperaba 'estuvo' después de 'ya': la chamba se cierra con 'ya estuvo' "
-                         "(se encontró %s)", describir(actual(p), buf, sizeof buf));
-                p->chamba_abierta = NULL;
-                ast_liberar(n);
-                return NULL;
-            }
-            avanzar(p);
-            break;
-        } else {
-            linea(p, n);
-        }
-    }
+    int ok = bloque(p, n, que);
     p->chamba_abierta = NULL;
-    return n;
+    if (ok) return n;
+    ast_liberar(n);
+    return NULL;
 
 error:
     ast_liberar(n);
-    saltar_chamba(p);
+    saltar_bloque(p);
     return NULL;
 }
 
-/* sentencia → declaracion | asignacion | consulta | contame | devolveme | chamba | llamada */
+/* sentencia → declaracion | asignacion | consulta | contame | devolveme | si | chamba | llamada */
 static Nodo *sentencia(Parser *p) {
     const Token *t = actual(p);
     char buf[200];
@@ -453,9 +501,10 @@ static Nodo *sentencia(Parser *p) {
         case TK_QUE: return consulta_tipo(p);
         case TK_CONTAME: return contame(p);
         case TK_DEVOLVEME: return devolveme(p);
+        case TK_SI: return si(p);
         case TK_CHAMBA: return chamba(p);
         case TK_YA:
-            return error_en(p, t, "'ya estuvo' cierra una chamba, pero no hay ninguna chamba abierta");
+            return error_en(p, t, "'ya estuvo' cierra una chamba o un 'si', pero no hay ninguno abierto");
         default: break;
     }
     if (t->tipo == TK_IDENT && siguiente(p)->tipo == TK_PAR_ABRE) return llamada(p);
@@ -466,13 +515,13 @@ static Nodo *sentencia(Parser *p) {
     return error_en(p, t, "no se esperaba %s al inicio; " INICIO_SENTENCIA, describir(t, buf, sizeof buf));
 }
 
-/* linea → sentencia SALTO   (la sentencia se agrega a `destino`: el programa o una chamba) */
+/* linea → sentencia SALTO   (la sentencia se agrega a `destino`: el programa, una chamba o un si) */
 static void linea(Parser *p, Nodo *destino) {
     char buf[200];
     /* El léxico ya reportó esta línea: no se agregan errores en cascada */
     if (linea_con_error_lexico(p)) {
-        if (verificar(p, TK_CHAMBA) && !p->chamba_abierta)
-            saltar_chamba(p);
+        if (verificar(p, TK_SI) || (verificar(p, TK_CHAMBA) && !p->chamba_abierta))
+            saltar_bloque(p);
         else
             saltar_linea(p);
         return;
@@ -491,7 +540,7 @@ static void linea(Parser *p, Nodo *destino) {
 
 /* programa → { linea } FIN */
 Nodo *sintactico_analizar(const ListaTokens *tokens, ListaErrores *errores) {
-    Parser p = {tokens, 0, errores, NULL};
+    Parser p = {tokens, 0, errores, NULL, 0};
     Nodo *programa = nodo_nuevo(NODO_PROGRAMA, 1);
 
     while (!verificar(&p, TK_FIN)) {

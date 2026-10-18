@@ -7,8 +7,9 @@
  *   4. Chambas: que no se repitan ni sus parámetros, que se llamen con la cantidad
  *      correcta de valores, que 'devolveme' solo aparezca dentro de una chamba y
  *      que una chamba no cambie variables globales.
- *   5. Operaciones: que '+ - * /' se usen con tipos compatibles (si un tipo se
- *      sabe hasta ejecutar, como el de un parámetro, lo revisa el intérprete).
+ *   5. Operaciones: que '+ - * /' y las comparaciones se usen con tipos compatibles
+ *      (si un tipo se sabe hasta ejecutar, como el de un parámetro, lo revisa el intérprete).
+ *   6. Que la condición de un 'si' dé simon o nel.
  */
 #ifndef SEMANTICO_H
 #define SEMANTICO_H

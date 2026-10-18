@@ -70,6 +70,7 @@ const char *nodo_etiqueta(const Nodo *nodo) {
         case NODO_LLAMADA: return "Llamada";
         case NODO_DEVOLVEME: return "Devolveme";
         case NODO_CONTAME: return "Contame";
+        case NODO_SI: return "Si";
         default: return "Variable";
     }
 }
@@ -92,7 +93,7 @@ void nodo_atributos(const Nodo *nodo, char *buf, size_t n) {
             snprintf(buf, n, "%s", nodo->lexema);
             break;
         case NODO_OPERACION:
-            snprintf(buf, n, "operador=%c", nodo->operador);
+            snprintf(buf, n, "operador=%s", nodo->operador);
             break;
         case NODO_CHAMBA:
             snprintf(buf, n, "nombre=%s, %d parámetros, %d sentencias", nodo->nombre, nodo->num_parametros,
@@ -107,18 +108,23 @@ void nodo_atributos(const Nodo *nodo, char *buf, size_t n) {
         case NODO_CONTAME:
             snprintf(buf, n, "muestra el valor");
             break;
+        case NODO_SI:
+            snprintf(buf, n, "condición y %d sentencias", nodo->num_sentencias);
+            break;
         default: /* CONSULTA_TIPO, VARIABLE y PARAMETRO */
             snprintf(buf, n, "nombre=%s", nodo->nombre);
     }
 }
 
-/* Hijos de una chamba: primero los parámetros y luego el cuerpo */
+/* Hijos de una chamba: primero los parámetros y luego el cuerpo.
+ * Hijos de un si: primero la condición y luego el cuerpo. */
 int nodo_num_hijos(const Nodo *nodo) {
     switch (nodo->clase) {
         case NODO_PROGRAMA: return nodo->num_sentencias;
         case NODO_CHAMBA: return nodo->num_parametros + nodo->num_sentencias;
         case NODO_LLAMADA: return nodo->num_parametros;
         case NODO_OPERACION: return 2;
+        case NODO_SI: return 1 + nodo->num_sentencias;
         default: return nodo->valor ? 1 : 0;
     }
 }
@@ -130,6 +136,7 @@ Nodo *nodo_hijo(const Nodo *nodo, int i) {
             return i < nodo->num_parametros ? nodo->parametros[i] : nodo->sentencias[i - nodo->num_parametros];
         case NODO_LLAMADA: return nodo->parametros[i];
         case NODO_OPERACION: return i == 0 ? nodo->izq : nodo->der;
+        case NODO_SI: return i == 0 ? nodo->valor : nodo->sentencias[i - 1];
         default: return nodo->valor;
     }
 }

@@ -12,11 +12,12 @@
 typedef enum {
     /* Palabras reservadas (siempre primero) */
     TK_FIJATE, TK_QUE, TK_ES, TK_PONELE, TK_A, TK_SIMON, TK_NEL, TK_NI, TK_MAIZ, TK_ONDA,
-    TK_CHAMBA, TK_YA, TK_ESTUVO, TK_DEVOLVEME, TK_CONTAME,
+    TK_CHAMBA, TK_YA, TK_ESTUVO, TK_DEVOLVEME, TK_SI, TK_CONTAME,
     /* Nombres y literales */
     TK_IDENT, TK_CABAL, TK_CON_VUELTO, TK_CHISME,
     /* Símbolos */
     TK_PAR_ABRE, TK_PAR_CIERRA, TK_COMA, TK_MAS, TK_MENOS, TK_POR, TK_ENTRE,
+    TK_IGUAL, TK_DISTINTO, TK_MENOR, TK_MAYOR, TK_MENOR_IGUAL, TK_MAYOR_IGUAL,
     /* Control */
     TK_SALTO,  /* fin de sentencia */
     TK_ERROR,  /* el léxico ya reportó un error en este punto */
