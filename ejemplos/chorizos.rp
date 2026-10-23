@@ -1,0 +1,26 @@
+# Chorizos (arreglos) en RP
+# Un chorizo es una fila de valores entre corchetes. Las posiciones empiezan en 0.
+
+fijate que notas es [90, 85, 70]
+contame notas                       # [90, 85, 70]
+contame notas[0]                    # 90
+
+ponele 95 a notas[1]                # cambia una posición
+metele 60 a notas                   # agrega al final
+contame notas                       # [90, 95, 70, 60]
+contame cuantos notas               # 4
+que onda notas                      # chorizo
+
+# Un chorizo puede guardar valores de cualquier tipo
+fijate que datos es ["Ana", 19, simon, [1, 2]]
+contame datos[3][1]                 # 2
+
+# Con una chamba que se llama a sí misma se recorre todo el chorizo
+chamba sumar_desde(lista, i)
+    si i >= cuantos lista
+        devolveme 0
+    ya estuvo
+    devolveme lista[i] + sumar_desde(lista, i + 1)
+ya estuvo
+
+contame "Total: " + sumar_desde(notas, 0)    # Total: 315

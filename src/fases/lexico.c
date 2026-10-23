@@ -18,13 +18,13 @@
  *   3. Una función por cada clase de token: nombres, números, chismes, símbolos.
  *   4. lexico_analizar(): el ciclo principal que lo une todo.
  */
-#include "lexico.h"
+#include "fases/lexico.h"
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "util.h"
+#include "base/util.h"
 
 /* ============================================================ 1. TABLAS */
 
@@ -51,6 +51,8 @@ static const Regla PALABRAS[] = {
     {"si",        TK_SI},         /* si edad >= 18                */
     {"ya",        TK_YA},         /* ya estuvo = fin del bloque   */
     {"estuvo",    TK_ESTUVO},
+    {"metele",    TK_METELE},     /* metele 4 a notas             */
+    {"cuantos",   TK_CUANTOS},    /* cuantos notas                */
 };
 
 /* Símbolos permitidos. Los de dos caracteres van primero: así "<=" no se lee como "<" y "=" */
@@ -63,6 +65,8 @@ static const Regla SIMBOLOS[] = {
     {">", TK_MAYOR},
     {"(", TK_PAR_ABRE},
     {")", TK_PAR_CIERRA},
+    {"[", TK_CORCHETE_ABRE},
+    {"]", TK_CORCHETE_CIERRA},
     {",", TK_COMA},
     {"+", TK_MAS},
     {"-", TK_MENOS},
@@ -116,10 +120,7 @@ static void avanzar(Lexico *lx, size_t bytes) {
 /* Guarda un token nuevo en la lista */
 static Token *emitir(Lexico *lx, TipoToken tipo, const char *inicio, size_t n, int linea, int columna) {
     ListaTokens *l = lx->tokens;
-    if (l->cantidad == l->capacidad) {
-        l->capacidad = l->capacidad ? l->capacidad * 2 : 64;
-        l->datos = xrealloc(l->datos, (size_t)l->capacidad * sizeof *l->datos);
-    }
+    l->datos = crecer(l->datos, l->cantidad, &l->capacidad, sizeof *l->datos);
     Token *t = &l->datos[l->cantidad++];
     memset(t, 0, sizeof *t);
     t->tipo = tipo;
@@ -196,13 +197,13 @@ static int es_byte_de_nombre(unsigned char c) {
     return es_digito((char)c) || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80;
 }
 
-/* 1 si el último token es un valor (5, x, "hola", ')'...).
+/* 1 si el último token es un valor (5, x, "hola", ')', ']'...).
  * Sirve para saber qué significa un '-':  'x -7' es una resta, 'es -7' es un número negativo. */
 static int anterior_es_valor(const Lexico *lx) {
     if (lx->tokens->cantidad == 0) return 0;
     switch (lx->tokens->datos[lx->tokens->cantidad - 1].tipo) {
         case TK_IDENT: case TK_CABAL: case TK_CON_VUELTO: case TK_CHISME:
-        case TK_SIMON: case TK_NEL: case TK_MAIZ: case TK_PAR_CIERRA:
+        case TK_SIMON: case TK_NEL: case TK_MAIZ: case TK_PAR_CIERRA: case TK_CORCHETE_CIERRA:
             return 1;
         default:
             return 0;
@@ -302,7 +303,7 @@ static void leer_chisme(Lexico *lx, int linea, int columna) {
     }
 }
 
-/* ---- Símbolos:  ( ) , + - * /  == != < > <= >= */
+/* ---- Símbolos:  ( ) [ ] , + - * /  == != < > <= >= */
 static void leer_simbolo(Lexico *lx, int linea, int columna) {
     const char *inicio = actual(lx);
 

@@ -9,11 +9,12 @@
 #include <stddef.h>
 
 typedef enum {
-    RP_CABAL,       /* entero:   42, -7       (int en C)    */
-    RP_CON_VUELTO,  /* decimal:  3.75, -0.5   (double en C) */
-    RP_CHISME,      /* texto:    "Ana"        (char* en C)  */
-    RP_SIMONEL,     /* lógico:   simon, nel   (bool en C)   */
-    RP_NI_MAIZ,     /* sin valor: ni maiz     (NULL en C)   */
+    RP_CABAL,       /* entero:   42, -7          (int en C)    */
+    RP_CON_VUELTO,  /* decimal:  3.75, -0.5      (double en C) */
+    RP_CHISME,      /* texto:    "Ana"           (char* en C)  */
+    RP_SIMONEL,     /* lógico:   simon, nel      (bool en C)   */
+    RP_NI_MAIZ,     /* sin valor: ni maiz        (NULL en C)   */
+    RP_CHORIZO,     /* arreglo:  [1, "Ana", nel] (list en Python) */
     RP_DESCONOCIDO  /* el tipo se sabe hasta ejecutar (parámetros, resultado de una chamba)
                        o no se pudo calcular por un error semántico */
 } TipoRP;
@@ -25,14 +26,26 @@ typedef struct {
         double con_vuelto;
         char *chisme;
         int simonel;
+        struct Chorizo *chorizo;
     } dato;
 } ValorRP;
+
+/* Un chorizo es una fila de valores de cualquier tipo, uno detrás de otro.
+ * Se copia completo al asignarlo: 'fijate que b es a' crea un chorizo nuevo. */
+typedef struct Chorizo {
+    ValorRP *valores;
+    int cantidad;
+    int capacidad;
+} Chorizo;
 
 const char *tipo_rp_nombre(TipoRP tipo);
 ValorRP valor_copiar(const ValorRP *v);
 void valor_liberar(ValorRP *v);
 void valor_formatear(const ValorRP *v, char *buf, size_t n);  /* el chisme va entre comillas */
 void valor_texto(const ValorRP *v, char *buf, size_t n);      /* como lo muestra 'contame' */
+
+ValorRP chorizo_nuevo(void);
+void chorizo_agregar(ValorRP *chorizo, ValorRP valor);  /* el chorizo se queda con `valor` */
 
 /* Operaciones aritméticas ('+', '-', '*', '/'):
  *   cabal  op cabal       → cabal (la división es entera: 7 / 2 = 3)

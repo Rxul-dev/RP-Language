@@ -8,8 +8,8 @@
 #ifndef TABLA_SIMBOLOS_H
 #define TABLA_SIMBOLOS_H
 
-#include "util.h"
-#include "valor.h"
+#include "base/util.h"
+#include "base/valor.h"
 
 #define TS_CUBETAS 64
 

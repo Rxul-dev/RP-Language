@@ -1,19 +1,19 @@
 /* VALORES DE RP
  *
  * ¿Qué hace?
- *   Define cómo se guarda un valor de RP (un cabal, un chisme, simon...) y las
- *   operaciones + - * / entre valores.
+ *   Define cómo se guarda un valor de RP (un cabal, un chisme, simon, un
+ *   chorizo...) y las operaciones + - * / y las comparaciones entre valores.
  *
  *   Cada valor lleva su tipo pegado (una "unión etiquetada"): así una variable
  *   puede guardar un cabal y luego un chisme, igual que en Python.
  */
-#include "valor.h"
+#include "base/valor.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "util.h"
+#include "base/util.h"
 
 const char *tipo_rp_nombre(TipoRP tipo) {
     switch (tipo) {
@@ -22,22 +22,59 @@ const char *tipo_rp_nombre(TipoRP tipo) {
         case RP_CHISME: return "chisme";
         case RP_SIMONEL: return "simonel";
         case RP_NI_MAIZ: return "ni maiz";
+        case RP_CHORIZO: return "chorizo";
         default: return "dinámico";
     }
 }
 
+ValorRP chorizo_nuevo(void) {
+    ValorRP v = {RP_CHORIZO, {0}};
+    v.dato.chorizo = xcalloc(1, sizeof(Chorizo));
+    return v;
+}
+
+void chorizo_agregar(ValorRP *chorizo, ValorRP valor) {
+    Chorizo *c = chorizo->dato.chorizo;
+    c->valores = crecer(c->valores, c->cantidad, &c->capacidad, sizeof *c->valores);
+    c->valores[c->cantidad++] = valor;
+}
+
+/* El chisme y el chorizo se duplican completos para que cada variable tenga el suyo */
 ValorRP valor_copiar(const ValorRP *v) {
-    ValorRP copia = *v;
-    if (v->tipo == RP_CHISME) copia.dato.chisme = xstrdup(v->dato.chisme);
-    return copia;
+    if (v->tipo == RP_CHISME) {
+        ValorRP copia = *v;
+        copia.dato.chisme = xstrdup(v->dato.chisme);
+        return copia;
+    }
+    if (v->tipo == RP_CHORIZO) {
+        ValorRP copia = chorizo_nuevo();
+        for (int i = 0; i < v->dato.chorizo->cantidad; i++)
+            chorizo_agregar(&copia, valor_copiar(&v->dato.chorizo->valores[i]));
+        return copia;
+    }
+    return *v;
 }
 
 void valor_liberar(ValorRP *v) {
-    if (v->tipo == RP_CHISME) {
-        free(v->dato.chisme);
-        v->dato.chisme = NULL;
+    if (v->tipo == RP_CHISME) free(v->dato.chisme);
+    if (v->tipo == RP_CHORIZO) {
+        for (int i = 0; i < v->dato.chorizo->cantidad; i++) valor_liberar(&v->dato.chorizo->valores[i]);
+        free(v->dato.chorizo->valores);
+        free(v->dato.chorizo);
     }
     v->tipo = RP_NI_MAIZ;
+}
+
+/* [1, "Ana", simon]: cada valor se muestra con valor_formatear (los chismes con comillas) */
+static void formatear_chorizo(const Chorizo *c, char *buf, size_t n) {
+    char parte[512];
+    snprintf(buf, n, "[");
+    for (int i = 0; i < c->cantidad; i++) {
+        if (i) agregar_texto(buf, n, ", ");
+        valor_formatear(&c->valores[i], parte, sizeof parte);
+        agregar_texto(buf, n, parte);
+    }
+    agregar_texto(buf, n, "]");
 }
 
 void valor_formatear(const ValorRP *v, char *buf, size_t n) {
@@ -55,6 +92,9 @@ void valor_formatear(const ValorRP *v, char *buf, size_t n) {
             break;
         case RP_SIMONEL:
             snprintf(buf, n, "%s", v->dato.simonel ? "simon" : "nel");
+            break;
+        case RP_CHORIZO:
+            formatear_chorizo(v->dato.chorizo, buf, n);
             break;
         default:
             snprintf(buf, n, "ni maiz");
@@ -100,6 +140,7 @@ static const char *con_articulo(TipoRP t) {
         case RP_CON_VUELTO: return "un con vuelto";
         case RP_CHISME: return "un chisme";
         case RP_SIMONEL: return "un simonel";
+        case RP_CHORIZO: return "un chorizo";
         default: return "ni maiz";
     }
 }
@@ -122,6 +163,15 @@ static int son_iguales(const ValorRP *a, const ValorRP *b) {
     switch (a->tipo) {
         case RP_CHISME: return strcmp(a->dato.chisme, b->dato.chisme) == 0;
         case RP_SIMONEL: return a->dato.simonel == b->dato.simonel;
+        case RP_CHORIZO: {
+            /* Dos chorizos son iguales si tienen los mismos valores en el mismo orden */
+            const Chorizo *x = a->dato.chorizo, *y = b->dato.chorizo;
+            if (x->cantidad != y->cantidad) return 0;
+            for (int i = 0; i < x->cantidad; i++) {
+                if (!son_iguales(&x->valores[i], &y->valores[i])) return 0;
+            }
+            return 1;
+        }
         default: return 1;  /* ni maiz == ni maiz */
     }
 }

@@ -7,9 +7,9 @@
 
 #include <string.h>
 
-#include "lexico.h"
-#include "semantico.h"
-#include "sintactico.h"
+#include "fases/lexico.h"
+#include "fases/semantico.h"
+#include "fases/sintactico.h"
 
 void compilar(const char *fuente, Resultado *r) {
     memset(r, 0, sizeof *r);

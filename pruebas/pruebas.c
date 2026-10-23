@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "compilador.h"
-#include "interprete.h"
+#include "fases/interprete.h"
 
 static int total = 0, fallos = 0;
 
@@ -280,15 +280,60 @@ static void pruebas_si(void) {
     verificar_error("si simon\n  devolveme 1\nya estuvo", FASE_SEMANTICA);
 }
 
-static void prueba_ejemplo_completo(void) {
-    FILE *f = fopen("ejemplos/completo.rp", "rb");
-    VERIFICAR(f != NULL, "no se encontró ejemplos/completo.rp (ejecute desde la carpeta del proyecto)");
+static void pruebas_chorizos(void) {
+    /* Crear, leer y mostrar */
+    verificar_salida("fijate que n es [90, 85, 70]\ncontame n", "[90, 85, 70]");
+    verificar_salida("fijate que n es [90, 85, 70]\ncontame n[0] + n[2]", "160");
+    verificar_salida("fijate que n es []\nque onda n\ncontame cuantos n", "chorizo|0");
+    verificar_salida("contame [\"Ana\", 2.5, simon, ni maiz, [1]]", "[\"Ana\", 2.5, simon, ni maiz, [1]]");
+    verificar_salida("fijate que m es [[1, 2], [3, 4]]\ncontame m[1][0]", "3");
+    verificar_salida("fijate que n es [1, 2]\ncontame n[1] -1", "1");
+    /* ponele a una posición, metele y cuantos */
+    verificar_salida("fijate que n es [1, 2]\nponele 9 a n[0]\nmetele 3 a n\ncontame n\ncontame cuantos n + 1",
+                     "[9, 2, 3]|4");
+    verificar_salida("contame cuantos \"año\"", "3");
+    /* Comparación y unión con chismes */
+    verificar_salida("contame [1, 2] == [1, 2.0]", "simon");
+    verificar_salida("contame [1, 2] != [2, 1]", "simon");
+    verificar_salida("contame \"lista: \" + [1, 2]", "lista: [1, 2]");
+    /* Se copian completos: cambiar la copia no cambia el original */
+    verificar_salida("fijate que x es [1]\nfijate que y es x\nmetele 2 a y\ncontame x\ncontame y", "[1]|[1, 2]");
+    /* Una chamba recibe un chorizo y lo recorre */
+    verificar_salida("chamba suma(l, i)\n  si i >= cuantos l\n    devolveme 0\n  ya estuvo\n"
+                     "  devolveme l[i] + suma(l, i + 1)\nya estuvo\ncontame suma([1, 2, 3], 0)", "6");
+
+    /* Errores de ejecución */
+    verificar_salida("fijate que n es [1, 2]\ncontame n[2]",
+                     "ERROR: la posición 2 no existe: el chorizo tiene 2 valor(es), en las posiciones 0 a 1");
+    verificar_salida("fijate que n es []\nponele 1 a n[0]", "ERROR: la posición 0 no existe: el chorizo está vacío");
+    verificar_salida("chamba f(x)\n  metele 1 a x\n  devolveme x\nya estuvo\nf(5)",
+                     "ERROR: 'metele' solo funciona con un chorizo, pero 'x' es de tipo cabal");
+
+    /* Errores */
+    verificar_error("contame [1, 2", FASE_SINTACTICA);
+    verificar_error("contame [1 2]", FASE_SINTACTICA);
+    verificar_error("fijate que n es [1]\ncontame n[0", FASE_SINTACTICA);
+    verificar_error("fijate que n es [1]\nmetele 2 n", FASE_SINTACTICA);
+    verificar_error("fijate que metele es 1", FASE_SINTACTICA);
+    verificar_error("fijate que n es 5\ncontame n[0]", FASE_SEMANTICA);
+    verificar_error("fijate que n es [1]\ncontame n[\"a\"]", FASE_SEMANTICA);
+    verificar_error("fijate que n es 5\nmetele 1 a n", FASE_SEMANTICA);
+    verificar_error("metele 1 a n", FASE_SEMANTICA);
+    verificar_error("contame cuantos 5", FASE_SEMANTICA);
+    verificar_error("contame [1] - [1]", FASE_SEMANTICA);
+    verificar_error("fijate que n es [1]\nchamba f()\n  metele 2 a n\nya estuvo", FASE_SEMANTICA);
+}
+
+/* Los programas de ejemplos/ deben dar la salida que dicen sus comentarios */
+static void prueba_ejemplo(const char *ruta, const char *esperada) {
+    FILE *f = fopen(ruta, "rb");
+    VERIFICAR(f != NULL, "no se encontró %s (ejecute desde la carpeta del proyecto)", ruta);
     if (!f) return;
     char fuente[4096];
     size_t n = fread(fuente, 1, sizeof fuente - 1, f);
     fuente[n] = '\0';
     fclose(f);
-    verificar_salida(fuente, "cabal|chisme");
+    verificar_salida(fuente, esperada);
 }
 
 int main(void) {
@@ -298,7 +343,10 @@ int main(void) {
     pruebas_expresiones();
     pruebas_chambas();
     pruebas_si();
-    prueba_ejemplo_completo();
+    pruebas_chorizos();
+    prueba_ejemplo("ejemplos/chambas.rp", "resultado calculado|22");
+    prueba_ejemplo("ejemplos/si.rp", "Es mayor de edad|120");
+    prueba_ejemplo("ejemplos/chorizos.rp", "[90, 85, 70]|90|[90, 95, 70, 60]|4|chorizo|2|Total: 315");
     printf("%d de %d pruebas pasaron\n", total - fallos, total);
     return fallos ? 1 : 0;
 }

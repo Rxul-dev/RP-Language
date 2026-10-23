@@ -2,10 +2,10 @@
 #ifndef COMPILADOR_H
 #define COMPILADOR_H
 
-#include "ast.h"
-#include "errores.h"
-#include "tabla_simbolos.h"
-#include "token.h"
+#include "base/errores.h"
+#include "fases/ast.h"
+#include "fases/tabla_simbolos.h"
+#include "fases/token.h"
 
 typedef struct {
     ListaTokens tokens;

@@ -29,7 +29,8 @@
         },
         { "name": "keyword.control.rp", "match": "\\bya\\s+estuvo\\b|\\b(devolveme|si|ya|estuvo)\\b" },
         { "name": "support.function.rp", "match": "\\bcontame\\b" },
-        { "name": "keyword.other.asignacion.rp", "match": "\\b(ponele|es|a)\\b" },
+        { "name": "keyword.other.asignacion.rp", "match": "\\b(ponele|metele|es|a)\\b" },
+        { "name": "support.function.rp", "match": "\\bcuantos\\b" },
         { "name": "keyword.other.rp", "match": "\\b(fijate|que|onda)\\b" }
       ]
     },

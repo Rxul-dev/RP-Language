@@ -13,13 +13,11 @@
 #include <windows.h>
 #endif
 
+#include "base/util.h"
 #include "compilador.h"
-#include "interprete.h"
-#include "lexico.h"
+#include "fases/interprete.h"
+#include "interactivo.h"
 #include "reportes.h"
-#include "semantico.h"
-#include "sintactico.h"
-#include "util.h"
 
 static char *leer_archivo(const char *ruta) {
     FILE *f = fopen(ruta, "rb");
@@ -84,8 +82,7 @@ static int compilar_archivo(const char *ruta, int solo_salida) {
         Interprete in;
         interprete_iniciar(&in, NULL, NULL);
         if (!interprete_ejecutar(&in, r.programa)) {
-            ListaErrores error = {&in.error, 1, 1};
-            reporte_errores(&error);
+            reporte_error(&in.error);
             codigo = 1;
         }
         if (!solo_salida) {
@@ -98,111 +95,6 @@ static int compilar_archivo(const char *ruta, int solo_salida) {
     resultado_liberar(&r);
     free(fuente);
     return codigo;
-}
-
-/* 1 si la línea empieza con la palabra `palabra` (ignora espacios al inicio) */
-static int empieza_con(const char *linea, const char *palabra) {
-    linea += strspn(linea, " \t");
-    size_t n = strlen(palabra);
-    return strncmp(linea, palabra, n) == 0 && (linea[n] == '\0' || linea[n] == ' ' || linea[n] == '\t' ||
-                                               linea[n] == '(' || linea[n] == '#');
-}
-
-static int abre_bloque(const char *linea) {
-    return empieza_con(linea, "chamba") || empieza_con(linea, "si");
-}
-
-/* Una chamba o un si ocupan varias líneas: se siguen leyendo hasta su 'ya estuvo', contando los
- * bloques que se abren adentro. Devuelve cuántas líneas se leyeron. */
-static int leer_bloque(char *buf, size_t n) {
-    char linea[1024];
-    int lineas = 0, abiertos = 1;
-    while (printf("...> "), fflush(stdout), fgets(linea, sizeof linea, stdin)) {
-        lineas++;
-        linea[strcspn(linea, "\r\n")] = '\0';
-        strncat(buf, "\n", n - strlen(buf) - 1);
-        strncat(buf, linea, n - strlen(buf) - 1);
-        if (abre_bloque(linea)) abiertos++;
-        if (empieza_con(linea, "ya") && --abiertos == 0) break;
-    }
-    return lineas;
-}
-
-static int modo_interactivo(void) {
-    printf("RP interactivo · escriba sentencias de RP línea por línea\n");
-    printf("Comandos: :tabla (símbolos), :memoria, :ast (última línea), :salir\n");
-
-    TablaSimbolos tabla;
-    ts_iniciar(&tabla);
-    ListaErrores errores_semanticos = {0};
-    Semantico sem = {&tabla, &errores_semanticos, NULL};
-    Interprete in;
-    interprete_iniciar(&in, NULL, NULL);
-    Nodo *ultimo = NULL;
-    /* Los AST se guardan hasta el final: el intérprete apunta a las chambas declaradas en ellos */
-    Nodo *anteriores = nodo_nuevo(NODO_PROGRAMA, 0);
-    int numero_linea = 0;
-    char linea[1024], fuente[16384];
-
-    for (;;) {
-        printf("rp> ");
-        fflush(stdout);
-        if (!fgets(linea, sizeof linea, stdin)) {
-            putchar('\n');
-            break;
-        }
-        linea[strcspn(linea, "\r\n")] = '\0';
-        const char *comando = linea + strspn(linea, " \t");
-
-        if (strcmp(comando, ":salir") == 0 || strcmp(comando, ":q") == 0) break;
-        if (strcmp(comando, ":tabla") == 0) { reporte_tabla_simbolos(&tabla); continue; }
-        if (strcmp(comando, ":memoria") == 0) { reporte_memoria(&in); continue; }
-        if (strcmp(comando, ":ast") == 0) {
-            if (ultimo) reporte_arbol_ast(ultimo); else printf("(todavía no hay AST)\n");
-            continue;
-        }
-        if (*comando == '\0') continue;
-
-        numero_linea++;
-        int primera_linea = numero_linea;
-        snprintf(fuente, sizeof fuente, "%s", linea);
-        if (abre_bloque(comando)) numero_linea += leer_bloque(fuente, sizeof fuente);
-
-        ListaTokens tokens = {0};
-        ListaErrores errores = {0};
-        lexico_analizar(fuente, primera_linea, &tokens, &errores);
-        Nodo *programa = sintactico_analizar(&tokens, &errores);
-        tokens_liberar(&tokens);
-
-        if (errores.cantidad > 0) {
-            errores_ordenar(&errores);
-            reporte_errores(&errores);
-            ast_liberar(programa);
-        } else {
-            for (int i = 0; i < programa->num_sentencias; i++) {
-                int antes = errores_semanticos.cantidad;
-                semantico_visitar(&sem, programa->sentencias[i]);
-                if (errores_semanticos.cantidad > antes) {
-                    ListaErrores nuevos = {errores_semanticos.datos + antes, errores_semanticos.cantidad - antes, 0};
-                    reporte_errores(&nuevos);
-                } else if (!interprete_ejecutar_sentencia(&in, programa->sentencias[i])) {
-                    ListaErrores error = {&in.error, 1, 1};
-                    reporte_errores(&error);
-                    in.hay_error = 0;  /* en modo interactivo se puede seguir escribiendo */
-                }
-            }
-            if (ultimo) nodo_agregar_sentencia(anteriores, ultimo);
-            ultimo = programa;
-        }
-        errores_liberar(&errores);
-    }
-
-    ast_liberar(ultimo);
-    ast_liberar(anteriores);
-    interprete_liberar(&in);
-    ts_liberar(&tabla);
-    errores_liberar(&errores_semanticos);
-    return 0;
 }
 
 static void ayuda(const char *programa) {

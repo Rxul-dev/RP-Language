@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "util.h"
+#include "base/util.h"
 
 /* ------------------------------------------------------------ tabla genérica */
 
@@ -19,7 +19,7 @@ typedef struct {
     const char *const *encabezados;
     char **celdas;  /* filas * columnas, por filas */
     int filas;
-    int capacidad;
+    int capacidad;  /* en filas */
 } Tabla;
 
 static void tabla_iniciar(Tabla *t, int columnas, const char *const *encabezados) {
@@ -29,10 +29,7 @@ static void tabla_iniciar(Tabla *t, int columnas, const char *const *encabezados
 }
 
 static int tabla_fila(Tabla *t) {
-    if (t->filas == t->capacidad) {
-        t->capacidad = t->capacidad ? t->capacidad * 2 : 16;
-        t->celdas = xrealloc(t->celdas, (size_t)(t->capacidad * t->columnas) * sizeof(char *));
-    }
+    t->celdas = crecer(t->celdas, t->filas, &t->capacidad, (size_t)t->columnas * sizeof(char *));
     for (int c = 0; c < t->columnas; c++) t->celdas[t->filas * t->columnas + c] = NULL;
     return t->filas++;
 }
@@ -166,6 +163,16 @@ void reporte_arbol_ast(const Nodo *programa) {
     visitar_arbol(programa, "", 1, 1);
 }
 
+/* "3, 7, 12" (o "-" si la lista está vacía) */
+static void unir_lineas(const ListaEnteros *l, char *buf, size_t n) {
+    char numero[24];
+    snprintf(buf, n, "%s", l->cantidad ? "" : "-");
+    for (int i = 0; i < l->cantidad; i++) {
+        snprintf(numero, sizeof numero, "%s%d", i ? ", " : "", l->datos[i]);
+        agregar_texto(buf, n, numero);
+    }
+}
+
 /* Agrega a la tabla el nodo y sus hijos (preorden); devuelve el id asignado al nodo */
 static int visitar_tabla_ast(Tabla *t, const Nodo *nodo, int padre) {
     char atributos[512];
@@ -179,17 +186,12 @@ static int visitar_tabla_ast(Tabla *t, const Nodo *nodo, int padre) {
     tabla_poner(t, f, 4, "%s", nodo->tiene_tipo ? tipo_rp_nombre(nodo->tipo) : "-");
     if (padre) tabla_poner(t, f, 5, "%d", padre); else tabla_poner(t, f, 5, "-");
 
-    int hijos = nodo_num_hijos(nodo);
-    size_t capacidad = (size_t)hijos * 12 + 2;
-    char *ids = xmalloc(capacidad);
-    strcpy(ids, hijos ? "" : "-");
-    for (int i = 0; i < hijos; i++) {
-        int id_hijo = visitar_tabla_ast(t, nodo_hijo(nodo, i), id);
-        size_t usado = strlen(ids);
-        snprintf(ids + usado, capacidad - usado, "%s%d", i ? ", " : "", id_hijo);
-    }
+    ListaEnteros hijos = {0};
+    for (int i = 0; i < nodo_num_hijos(nodo); i++) enteros_agregar(&hijos, visitar_tabla_ast(t, nodo_hijo(nodo, i), id));
+    char ids[1024];
+    unir_lineas(&hijos, ids, sizeof ids);
     tabla_poner(t, f, 6, "%s", ids);
-    free(ids);
+    enteros_liberar(&hijos);
     return id;
 }
 
@@ -200,15 +202,6 @@ void reporte_tabla_ast(const Nodo *programa) {
     visitar_tabla_ast(&t, programa, 0);
     tabla_imprimir(&t);
     tabla_liberar(&t);
-}
-
-static void unir_lineas(const ListaEnteros *l, char *buf, size_t n) {
-    buf[0] = '\0';
-    if (l->cantidad == 0) snprintf(buf, n, "-");
-    for (int i = 0; i < l->cantidad; i++) {
-        size_t usado = strlen(buf);
-        snprintf(buf + usado, n - usado, "%s%d", i ? ", " : "", l->datos[i]);
-    }
 }
 
 void reporte_tabla_simbolos(const TablaSimbolos *tabla) {
@@ -239,9 +232,8 @@ void reporte_tabla_simbolos(const TablaSimbolos *tabla) {
         tabla_poner(&t, f, 6, "%s", buf);
         buf[0] = '\0';
         for (int k = 0; k < s->historial.cantidad; k++) {
-            size_t usado = strlen(buf);
-            snprintf(buf + usado, sizeof buf - usado, "%s%s", k ? " → " : "",
-                     tipo_rp_nombre((TipoRP)s->historial.datos[k]));
+            if (k) agregar_texto(buf, sizeof buf, " → ");
+            agregar_texto(buf, sizeof buf, tipo_rp_nombre((TipoRP)s->historial.datos[k]));
         }
         tabla_poner(&t, f, 7, "%s", buf);
     }
@@ -269,14 +261,13 @@ void reporte_memoria(const Interprete *in) {
     tabla_liberar(&t);
 }
 
-void reporte_errores(const ListaErrores *errores) {
+void reporte_error(const ErrorRP *error) {
     char buf[800];
-    if (errores->cantidad == 0) {
-        printf("  ✔ Sin errores\n");
-        return;
-    }
-    for (int i = 0; i < errores->cantidad; i++) {
-        error_formatear(&errores->datos[i], buf, sizeof buf);
-        printf("  ✘ %s\n", buf);
-    }
+    error_formatear(error, buf, sizeof buf);
+    printf("  ✘ %s\n", buf);
+}
+
+void reporte_errores(const ListaErrores *errores) {
+    if (errores->cantidad == 0) printf("  ✔ Sin errores\n");
+    for (int i = 0; i < errores->cantidad; i++) reporte_error(&errores->datos[i]);
 }

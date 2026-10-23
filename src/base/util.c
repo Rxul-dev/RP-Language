@@ -1,10 +1,10 @@
 /* UTILIDADES
  *
  * Funciones de apoyo que usan todos los demás archivos: pedir memoria sin que
- * el programa se caiga si falla, copiar textos, listas de números y contar las
+ * el programa se caiga si falla, copiar textos, listas que crecen y contar las
  * letras de un texto con tildes (UTF-8).
  */
-#include "util.h"
+#include "base/util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,11 +44,14 @@ char *xstrdup(const char *s) {
     return xstrndup(s, strlen(s));
 }
 
+void *crecer(void *datos, int cantidad, int *capacidad, size_t tam_elemento) {
+    if (cantidad < *capacidad) return datos;
+    *capacidad = *capacidad ? *capacidad * 2 : 8;
+    return xrealloc(datos, (size_t)*capacidad * tam_elemento);
+}
+
 void enteros_agregar(ListaEnteros *l, int valor) {
-    if (l->cantidad == l->capacidad) {
-        l->capacidad = l->capacidad ? l->capacidad * 2 : 4;
-        l->datos = xrealloc(l->datos, (size_t)l->capacidad * sizeof *l->datos);
-    }
+    l->datos = crecer(l->datos, l->cantidad, &l->capacidad, sizeof *l->datos);
     l->datos[l->cantidad++] = valor;
 }
 
@@ -65,4 +68,9 @@ size_t utf8_ancho(const char *s) {
         if (((unsigned char)*s & 0xC0) != 0x80) ancho++;
     }
     return ancho;
+}
+
+void agregar_texto(char *buf, size_t n, const char *texto) {
+    size_t usado = strlen(buf);
+    if (usado + 1 < n) snprintf(buf + usado, n - usado, "%s", texto);
 }

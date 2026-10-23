@@ -9,7 +9,7 @@
  *   hash) y ese número dice en qué "cubeta" está guardado. Así no hay que
  *   revisar todos los nombres uno por uno.
  */
-#include "tabla_simbolos.h"
+#include "fases/tabla_simbolos.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -44,10 +44,7 @@ Simbolo *ts_declarar(TablaSimbolos *ts, const char *nombre, TipoRP tipo, int lin
     s->siguiente = ts->cubetas[i];
     ts->cubetas[i] = s;
 
-    if (ts->cantidad == ts->capacidad) {
-        ts->capacidad = ts->capacidad ? ts->capacidad * 2 : 8;
-        ts->orden = xrealloc(ts->orden, (size_t)ts->capacidad * sizeof *ts->orden);
-    }
+    ts->orden = crecer(ts->orden, ts->cantidad, &ts->capacidad, sizeof *ts->orden);
     ts->orden[ts->cantidad++] = s;
     return s;
 }

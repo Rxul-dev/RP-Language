@@ -3,18 +3,15 @@
  * Guarda los errores que encuentra cada fase (con su línea y columna) y los
  * ordena para mostrarlos de arriba abajo.
  */
-#include "errores.h"
+#include "base/errores.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "util.h"
+#include "base/util.h"
 
 static ErrorRP *nuevo_error(ListaErrores *l) {
-    if (l->cantidad == l->capacidad) {
-        l->capacidad = l->capacidad ? l->capacidad * 2 : 8;
-        l->datos = xrealloc(l->datos, (size_t)l->capacidad * sizeof *l->datos);
-    }
+    l->datos = crecer(l->datos, l->cantidad, &l->capacidad, sizeof *l->datos);
     ErrorRP *e = &l->datos[l->cantidad];
     e->orden = l->cantidad++;
     return e;

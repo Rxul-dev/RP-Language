@@ -5,7 +5,7 @@
  *   CABAL       -?[0-9]+
  *   CON_VUELTO  -?[0-9]+\.[0-9]+
  *   CHISME      "[^"\n]*"  |  '[^'\n]*'
- *   símbolos    ( ) , + - * / == != < > <= >=
+ *   símbolos    ( ) [ ] , + - * / == != < > <= >=
  *   comentario  #[^\n]*                       (se descarta)
  *
  * Un '-' pegado a un dígito es el signo de un número (-7) solo si el token
@@ -14,8 +14,8 @@
 #ifndef LEXICO_H
 #define LEXICO_H
 
-#include "errores.h"
-#include "token.h"
+#include "base/errores.h"
+#include "fases/token.h"
 
 /* `linea_inicial` permite numerar bien las líneas en el modo interactivo */
 void lexico_analizar(const char *fuente, int linea_inicial, ListaTokens *tokens, ListaErrores *errores);

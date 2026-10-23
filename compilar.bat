@@ -3,7 +3,13 @@ rem Compila el lenguaje RP en Windows (requiere gcc de MinGW).
 rem   compilar.bat          crea rp.exe
 rem   compilar.bat prueba   compila y corre las pruebas automaticas
 
-set FUENTES=src\util.c src\valor.c src\errores.c src\token.c src\lexico.c src\ast.c src\sintactico.c src\tabla_simbolos.c src\semantico.c src\interprete.c src\reportes.c src\compilador.c
+set FUENTES=src\compilador.c src\interactivo.c src\reportes.c ^
+ src\base\util.c src\base\valor.c src\base\errores.c ^
+ src\fases\token.c src\fases\lexico.c src\fases\ast.c src\fases\sintactico.c ^
+ src\fases\tabla_simbolos.c src\fases\semantico.c src\fases\interprete.c ^
+ src\instrucciones\expresiones.c src\instrucciones\declaracion.c src\instrucciones\asignacion.c ^
+ src\instrucciones\consulta.c src\instrucciones\contame.c src\instrucciones\si.c ^
+ src\instrucciones\chambas.c src\instrucciones\chorizos.c
 
 where gcc >nul 2>nul
 if errorlevel 1 (
@@ -17,5 +23,5 @@ if "%1"=="prueba" (
     exit /b %errorlevel%
 )
 
-gcc -std=c11 -Wall -O2 -o rp.exe %FUENTES% src\main.c || exit /b 1
+gcc -std=c11 -Wall -O2 -Isrc -o rp.exe %FUENTES% src\main.c || exit /b 1
 echo Listo: se creo rp.exe
